@@ -1,0 +1,8 @@
+digraph G {
+  "a" -> "ab"
+  "a" -> "ac"
+  "a" -> "ad"
+  "a" -> "ae"
+  "a" -> "af"
+  "ab" -> "abz"
+}
