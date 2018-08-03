@@ -1,8 +1,9 @@
 digraph G {
-  "a" -> "ab"
-  "a" -> "ac"
-  "a" -> "ad"
-  "a" -> "ae"
-  "a" -> "af"
-  "ab" -> "abz"
+node [shape=rectangle];
+rankdir=LR;
+splines=ortho;
+  "scratch" -> "eu.gcr.io/karhoo-common/a:1.2.3";
+  "eu.gcr.io/karhoo-common/a:1.2.3" -> "eu.gcr.io/karhoo-common/ab:1.2.3";
+  "eu.gcr.io/karhoo-common/ab:1.2.3" -> "eu.gcr.io/karhoo-common/abd:1.2.3";
+  "eu.gcr.io/karhoo-common/a:1.2.3" -> "eu.gcr.io/karhoo-common/ac:1.2.3";
 }
