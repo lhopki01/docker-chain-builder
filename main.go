@@ -29,13 +29,12 @@ func main() {
 	primaryDockerImageFolder := filepath.Base(args[0])
 
 	dm := generateDepenencyMap(rootFolder)
-	//spew.Dump(dm)
 	log.Debugf("%v", dm)
 	buildImages(rootFolder, []string{primaryDockerImageFolder}, semverComponent, false, dm)
-	//generateDependencyGraph(dl)
+	generateDependencyGraph(dm)
 }
 
-func bumpVersion(version string, semverComponent string) (newVersion string) {
+func bumpVersion(version string, semverComponent string) (newVersion []string) {
 	v, err := semver.NewVersion(version)
 	if err != nil {
 		log.Fatalf("Can't read version of %s", version)
@@ -50,11 +49,12 @@ func bumpVersion(version string, semverComponent string) (newVersion string) {
 	default:
 		log.Fatalf("Don't understand semverComponent %s", semverComponent)
 	}
-	return v.String()
+	return []string{v.String(), fmt.Sprintf("%d.%d", v.Major(), v.Minor()), fmt.Sprintf("%d", v.Major())}
 }
 
 func updateVersionFile(basePath string, folder string, semverComponent string, dm map[string]DockerImage) {
-	newContent := []byte(bumpVersion(dm[folder].Version, semverComponent))
+	newVersion := bumpVersion(dm[folder].Version, semverComponent)
+	newContent := []byte(newVersion[0])
 	file := fmt.Sprintf("%s/%s/VERSION", basePath, folder)
 	err := ioutil.WriteFile(file, newContent, 0644)
 	if err != nil {
@@ -73,7 +73,7 @@ func updateDockerFile(basePath string, folder string, semverComponent string, dm
 	}
 
 	newVersion := bumpVersion(fromLineSplit[1], semverComponent)
-	dockerFile[idx] = fmt.Sprintf("%s:%s", fromLineSplit[0], newVersion)
+	dockerFile[idx] = fmt.Sprintf("%s:%s", fromLineSplit[0], newVersion[0])
 
 	newContent := []byte(strings.Join(dockerFile, "\n"))
 	file := fmt.Sprintf("%s/%s/Dockerfile", basePath, folder)
@@ -111,21 +111,34 @@ func buildImages(basePath string, images []string, semverComponent string, incre
 
 func buildDockerImage(basePath string, folder string, semverComponent string, dm map[string]DockerImage) {
 	newVersion := bumpVersion(dm[folder].Version, semverComponent)
-	tag := fmt.Sprintf("%s/%s:%s", "eu.gcr.io/karhoo-common", folder, newVersion)
-	log.Infof("Building %s", tag)
+	newVersion = append(newVersion, "latest")
+	image := fmt.Sprintf("%s/%s", "eu.gcr.io/karhoo-common", folder)
+	tags := []string{}
+	for _, tag := range newVersion {
+		tags = append(tags, fmt.Sprintf("%s:%s", image, tag))
+	}
+
+	cmd := "docker"
+	args := []string{"build"}
+	for _, tag := range tags {
+		args = append(args, "-t", tag)
+	}
 	path := fmt.Sprintf("%s/%s", basePath, folder)
-	output, err := exec.Command("docker", "build", "-t", tag, path).Output()
+	args = append(args, path)
+
+	log.Infof("Building %s", tags[0])
+	output, err := exec.Command(cmd, args...).CombinedOutput()
 	if err != nil {
-		log.Fatalf("Docker build failed for %s", path)
+		log.Fatalf("Docker build failed for %s\n%s", path, output)
 	}
 	log.Infof("Output of docker build %s\n%s", folder, string(output))
 }
 
-func generateDependencyGraph(dm []DockerImage) {
+func generateDependencyGraph(dm map[string]DockerImage) {
 	fmt.Print("digraph G {\n")
-	fmt.Print("node [shape=rectangle];\n")
-	fmt.Print("rankdir=LR;\n")
-	fmt.Print("splines=ortho;\n")
+	fmt.Print("  node [shape=rectangle];\n")
+	fmt.Print("  rankdir=LR;\n")
+	fmt.Print("  splines=ortho;\n")
 	for _, elem := range dm {
 		fmt.Printf("  \"%s\" -> \"%s\";\n", elem.From, elem.Image)
 	}
