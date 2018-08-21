@@ -1,9 +1,0 @@
-digraph G {
-  node [shape=rectangle];
-  rankdir=LR;
-  splines=ortho;
-  "eu.gcr.io/karhoo-common/test_ab:2.0.8" -> "eu.gcr.io/karhoo-common/test_abd:2.0.8";
-  "eu.gcr.io/karhoo-common/test_a:2.0.11" -> "eu.gcr.io/karhoo-common/test_ac:2.0.10";
-  "alpine:3.7" -> "eu.gcr.io/karhoo-common/test_a:2.0.11";
-  "eu.gcr.io/karhoo-common/test_a:2.0.11" -> "eu.gcr.io/karhoo-common/test_ab:2.0.8";
-}
