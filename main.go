@@ -12,7 +12,6 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/semver"
-	"github.com/davecgh/go-spew/spew"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -51,8 +50,8 @@ func main() {
 			DockerImages:    di,
 		}
 		log.Debugf("%v", dm)
-		updateVersions(rootFolder, []string{primaryDockerImageFolder}, semverComponent, false, dm)
-		//buildImages(rootFolder, []string{primaryDockerImageFolder}, semverComponent, false, dm)
+		updateVersions([]string{primaryDockerImageFolder}, false, dm)
+		buildDockerImages([]string{primaryDockerImageFolder}, false, dm)
 	}
 	di = generateDepenencyMap(rootFolder, "eu.gcr.io/karhoo-common")
 	generateDependencyGraph(di, rootFolder)
@@ -83,9 +82,14 @@ func updateVersionFile(folder string, dm DependencyMap) {
 	newVersion := bumpVersion(dm.DockerImages[folder].Version, dm.SemverComponent)
 	newContent := []byte(newVersion[0])
 	file := fmt.Sprintf("%s/%s/VERSION", dm.BasePath, folder)
-	err := ioutil.WriteFile(file, newContent, 0644)
-	if err != nil {
-		log.Fatalf("Couldn't write %s to file %s", newContent, file)
+	if true {
+		log.Info(fmt.Sprintf("Would write to '%s' to %s", newVersion[0], file))
+
+	} else {
+		err := ioutil.WriteFile(file, newContent, 0644)
+		if err != nil {
+			log.Fatalf("Couldn't write %s to file %s", newContent, file)
+		}
 	}
 }
 
@@ -100,20 +104,22 @@ func updateDockerFile(folder string, dm DependencyMap) {
 	}
 
 	newVersion := bumpVersion(fromLineSplit[1], dm.SemverComponent)[0]
-	dockerFile[idx] = fmt.Sprintf("%s:%s", fromLineSplit[0], newVersion)
+	newFromLine := fmt.Sprintf("%s:%s", fromLineSplit[0], newVersion)
+	dockerFile[idx] = newFromLine
 
 	newContent := []byte(strings.Join(dockerFile, "\n"))
 	file := fmt.Sprintf("%s/%s/Dockerfile", dm.BasePath, folder)
-	log.Warnf("Writing file %s", file)
-	log.Warnf(dockerFile[idx])
-	err := ioutil.WriteFile(file, newContent, 0644)
-	if err != nil {
-		log.Fatalf("Couldn't write %s to file %s", newContent, file)
+	if true {
+		log.Info(fmt.Sprintf("Would update %s FROM line to '%s'", file, newFromLine))
+	} else {
+		err := ioutil.WriteFile(file, newContent, 0644)
+		if err != nil {
+			log.Fatalf("Couldn't write %s to file %s", newContent, file)
+		}
 	}
 }
 
-func updateVersions(basePath string, images []string, semverComponent string, increment bool, dm DependencyMap) {
-	spew.Dump(images)
+func updateVersions(images []string, increment bool, dm DependencyMap) {
 	for _, image := range images {
 		updateVersionFile(image, dm)
 		if increment {
@@ -127,16 +133,16 @@ func updateVersions(basePath string, images []string, semverComponent string, in
 			}
 		}
 		if len(dependentImages) > 0 {
-			updateVersions(basePath, dependentImages, semverComponent, true, dm)
+			updateVersions(dependentImages, true, dm)
 		}
 	}
 }
-func buildDockerImages(basePath string, images []string, semverComponent string, increment bool, dm DependencyMap) {
+func buildDockerImages(images []string, increment bool, dm DependencyMap) {
 	var wg sync.WaitGroup
 	for _, image := range images {
 		wg.Add(1)
-		go func(basePath string, image string, semverComponent string, dm DependencyMap, wg *sync.WaitGroup) {
-			buildDockerImage(basePath, image, semverComponent, dm)
+		go func(image string, dm DependencyMap, wg *sync.WaitGroup) {
+			buildDockerImage(image, dm)
 			var dependentImages []string
 			for key, dockerImage := range dm.DockerImages {
 				//fmt.Printf("Comparing %s to %s\n", dockerImage.From, dm.DockerImages[image].Image)
@@ -145,16 +151,16 @@ func buildDockerImages(basePath string, images []string, semverComponent string,
 				}
 			}
 			if len(dependentImages) > 0 {
-				buildDockerImages(basePath, dependentImages, semverComponent, true, dm)
+				buildDockerImages(dependentImages, true, dm)
 			}
 			wg.Done()
-		}(basePath, image, semverComponent, dm, &wg)
+		}(image, dm, &wg)
 	}
 	wg.Wait()
 }
 
-func buildDockerImage(basePath string, folder string, semverComponent string, dm DependencyMap) {
-	newVersion := dm.DockerImages[folder].NewVersion
+func buildDockerImage(folder string, dm DependencyMap) {
+	newVersion := bumpVersion(dm.DockerImages[folder].Version, dm.SemverComponent)
 	newVersion = append(newVersion, "latest")
 	image := fmt.Sprintf("%s/%s", "eu.gcr.io/karhoo-common", folder)
 	tags := []string{}
@@ -167,15 +173,18 @@ func buildDockerImage(basePath string, folder string, semverComponent string, dm
 	for _, tag := range tags {
 		args = append(args, "-t", tag)
 	}
-	path := fmt.Sprintf("%s/%s", basePath, folder)
+	path := fmt.Sprintf("%s/%s", dm.BasePath, folder)
 	args = append(args, path)
-
-	log.Infof("Building %s", tags[0])
-	output, err := exec.Command(cmd, args...).CombinedOutput()
-	if err != nil {
-		log.Fatalf("Docker build failed for %s\n%s", path, output)
+	if true {
+		log.Info(fmt.Sprintf("Would build %s with tags %v", folder, tags))
+	} else {
+		log.Infof("Building %s", tags[0])
+		output, err := exec.Command(cmd, args...).CombinedOutput()
+		if err != nil {
+			log.Fatalf("Docker build failed for %s\n%s", path, output)
+		}
+		log.Infof("Output of docker build %s\n%s", folder, string(output))
 	}
-	log.Infof("Output of docker build %s\n%s", folder, string(output))
 }
 
 func generateDependencyGraph(di DockerImages, basePath string) {
