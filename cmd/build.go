@@ -111,7 +111,7 @@ func build() {
 
 	primaryDockerImageFolder := viper.GetString("imageFolder")
 	dm := DependencyMap{
-		Registry:        "eu.gcr.io/karhoo-common",
+		Registry:        viper.GetString("registry"),
 		SemverComponent: viper.GetString("semverComponent"),
 		BasePath:        rootFolder,
 		DockerImages:    di,
@@ -229,7 +229,7 @@ func buildDockerImages(images []string, increment bool, dm DependencyMap) {
 func buildDockerImage(folder string, dm DependencyMap) {
 	newVersion := bumpVersion(dm.DockerImages[folder].Version, dm.SemverComponent)
 	newVersion = append(newVersion, "latest")
-	image := fmt.Sprintf("%s/%s", "eu.gcr.io/karhoo-common", folder)
+	image := fmt.Sprintf("%s/%s", dm.Registry, folder)
 	tags := []string{}
 	for _, tag := range newVersion {
 		tags = append(tags, fmt.Sprintf("%s:%s", image, tag))
