@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -69,10 +70,11 @@ var buildCmd = &cobra.Command{
 		case
 			"major",
 			"minor",
-			"patch":
+			"patch",
+			"pre":
 			break
 		default:
-			return errors.New("Please specify one of ['major', 'minor', 'path']")
+			return errors.New("Please specify one of ['major', 'minor', 'path', 'pre']")
 		}
 		return nil
 	},
@@ -86,6 +88,7 @@ var buildCmd = &cobra.Command{
 }
 
 func init() {
+	//log.SetLevel(log.DebugLevel)
 	rootCmd.AddCommand(buildCmd)
 
 	buildCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "show what would happen")
@@ -125,11 +128,15 @@ func build() {
 }
 
 func bumpVersion(version string, semverComponent string) (newVersion []string) {
+	log.Debugf("version string is: %s", version)
 	v, err := semver.NewVersion(version)
 	if err != nil {
 		log.Warnf("%s not semver so can't bump", version)
 		return []string{version}
 	}
+	preRelease := v.Prerelease()
+	log.Debugf("preRelease is: %s", preRelease)
+	newPreRelease := 0
 	switch semverComponent {
 	case "none":
 		break
@@ -139,8 +146,22 @@ func bumpVersion(version string, semverComponent string) (newVersion []string) {
 		*v = v.IncMinor()
 	case "patch":
 		*v = v.IncPatch()
+	case "pre":
+		newPreRelease, err = strconv.Atoi(preRelease)
+		if err != nil {
+			log.Warnf("Can't increment pre-release %s", preRelease)
+		}
+		newPreRelease = newPreRelease + 1
 	default:
 		log.Fatalf("Don't understand semverComponent %s", semverComponent)
+	}
+	if preRelease != "" {
+		log.Debug("newPreRelease")
+		*v, err = v.SetPrerelease(strconv.Itoa(newPreRelease))
+		if err != nil {
+			log.Fatalf("Failed to add pre-release %s with err %v", strconv.Itoa(newPreRelease), err)
+		}
+		return []string{v.String()}
 	}
 	return []string{v.String(), fmt.Sprintf("%d.%d", v.Major(), v.Minor()), fmt.Sprintf("%d", v.Major())}
 }
