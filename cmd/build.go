@@ -257,7 +257,7 @@ func buildDockerImage(folder string, dm DependencyMap) {
 	}
 
 	cmd := "docker"
-	args := []string{"build"}
+	args := []string{"build", "--pull"}
 	for _, tag := range tags {
 		args = append(args, "-t", tag)
 	}
