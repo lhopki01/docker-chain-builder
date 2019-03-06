@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -51,30 +50,41 @@ type DockerImage struct {
 	DockerFileFromLine int
 }
 
+const (
+	VersionNone  = "none"
+	VersionPre   = "pre"
+	VersionPatch = "patch"
+	VersionMinor = "minor"
+	VersionMajor = "major"
+)
+
+var (
+	Versions = []string{
+		VersionNone,
+		VersionPre,
+		VersionPatch,
+		VersionMinor,
+		VersionMajor,
+	}
+)
+
 var dryRun bool
 var noPush bool
 
 // buildCmd represents the build command
 var buildCmd = &cobra.Command{
-	Use:   "build <source folder> <major|minor|patch>",
+	Use:   fmt.Sprintf("build <source folder> <%s>", strings.Join(Versions, "|")),
 	Short: "Build docker image and all docker images that depend on it",
 	Long:  `Find all images that depend on a specific source image and build them in order`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 2 {
-			return errors.New("Please specify source folder and semvar component")
+			return fmt.Errorf("please specify source folder and semvar component")
 		}
 		if _, err := os.Stat(fmt.Sprintf("%s/Dockerfile", filepath.Clean(args[0]))); os.IsNotExist(err) {
-			return errors.New(fmt.Sprintf("No Dockerfile in %s", args[0]))
+			return fmt.Errorf("no Dockerfile in %s", args[0])
 		}
-		switch args[1] {
-		case
-			"major",
-			"minor",
-			"patch",
-			"pre":
-			break
-		default:
-			return errors.New("Please specify one of ['major', 'minor', 'path', 'pre']")
+		if !isValidVersion(args[1]) {
+			return fmt.Errorf("please specify one of %s", Versions)
 		}
 		return nil
 	},
@@ -110,7 +120,7 @@ func build() {
 	//log.SetLevel(log.DebugLevel)
 	rootFolder := viper.GetString("rootFolder")
 
-	di := generateDepenencyMap(rootFolder, viper.GetString("registry"))
+	di := generateDependencyMap(rootFolder, viper.GetString("registry"))
 
 	primaryDockerImageFolder := viper.GetString("imageFolder")
 	dm := DependencyMap{
@@ -123,8 +133,17 @@ func build() {
 	updateVersions([]string{primaryDockerImageFolder}, false, dm)
 	buildDockerImages([]string{primaryDockerImageFolder}, false, dm)
 
-	di = generateDepenencyMap(rootFolder, viper.GetString("registry"))
+	di = generateDependencyMap(rootFolder, viper.GetString("registry"))
 	generateDependencyGraph(di, rootFolder)
+}
+
+func isValidVersion(version string) bool {
+	for _, v := range Versions {
+		if v == version {
+			return true
+		}
+	}
+	return false
 }
 
 func bumpVersion(version string, semverComponent string) (newVersion []string) {
@@ -138,20 +157,20 @@ func bumpVersion(version string, semverComponent string) (newVersion []string) {
 	log.Debugf("preRelease is: %s", preRelease)
 	newPreRelease := 0
 	switch semverComponent {
-	case "none":
+	case VersionNone:
 		break
-	case "major":
-		*v = v.IncMajor()
-	case "minor":
-		*v = v.IncMinor()
-	case "patch":
-		*v = v.IncPatch()
-	case "pre":
+	case VersionPre:
 		newPreRelease, err = strconv.Atoi(preRelease)
 		if err != nil {
 			log.Warnf("Can't increment pre-release %s", preRelease)
 		}
 		newPreRelease = newPreRelease + 1
+	case VersionMinor:
+		*v = v.IncMinor()
+	case VersionPatch:
+		*v = v.IncPatch()
+	case VersionMajor:
+		*v = v.IncMajor()
 	default:
 		log.Fatalf("Don't understand semverComponent %s", semverComponent)
 	}
@@ -168,7 +187,7 @@ func bumpVersion(version string, semverComponent string) (newVersion []string) {
 
 func updateVersionFile(folder string, dm DependencyMap) {
 	newVersion := bumpVersion(dm.DockerImages[folder].Version, dm.SemverComponent)
-	newContent := []byte(newVersion[0])
+	newContent := []byte(newVersion[0] + "\n")
 	file := fmt.Sprintf("%s/%s/VERSION", dm.BasePath, folder)
 	if dryRun {
 		log.Info(fmt.Sprintf("Would write to '%s' to %s", newVersion[0], file))
@@ -300,7 +319,7 @@ digraph G {
 {{ printf "  \"%s\" -> \"%s\";" $elem.FromImage $elem.Image }}
 {{- end }}
 }
-	`
+`
 	t := template.Must(template.New("dependencyGraphTemplate").Parse(dependencyGraphTemplate))
 	renderedScript := new(bytes.Buffer)
 
@@ -316,7 +335,7 @@ digraph G {
 	}
 }
 
-func generateDepenencyMap(path string, registry string) DockerImages {
+func generateDependencyMap(path string, registry string) DockerImages {
 	di := make(DockerImages)
 	dirs, err := ioutil.ReadDir(path)
 	if err != nil {
