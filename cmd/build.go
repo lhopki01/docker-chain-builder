@@ -304,6 +304,9 @@ func (dm *DependencyMap) buildDockerImage(folder string) {
 	command := "docker"
 	//args := []string{"build", "--pull"}
 	args := []string{"build"}
+	if !noPush {
+		args = append(args, "--pull")
+	}
 	for _, tag := range tags {
 		args = append(args, "-t", tag)
 	}
