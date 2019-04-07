@@ -275,7 +275,10 @@ func (dm *DependencyMap) buildDockerImages(images []string, increment bool) {
 	for _, folder := range images {
 		wg.Add(1)
 		go func(folder string, dm DependencyMap, wg *sync.WaitGroup) {
-			dm.buildDockerImage(folder)
+			err := dm.buildDockerImage(folder)
+			if err != nil {
+				return
+			}
 			var dependentImages []string
 			for key, dockerImage := range dm.DockerImages {
 				log.Debugf("Comparing %s to %s\n", dm.DockerImages[folder].FromImage, dm.DockerImages[folder].Image)
@@ -292,7 +295,7 @@ func (dm *DependencyMap) buildDockerImages(images []string, increment bool) {
 	wg.Wait()
 }
 
-func (dm *DependencyMap) buildDockerImage(folder string) {
+func (dm *DependencyMap) buildDockerImage(folder string) error {
 	newVersion := bumpVersion(dm.DockerImages[folder].Version, dm.SemverComponent)
 	newVersion = append(newVersion, "latest")
 	image := fmt.Sprintf("%s/%s", dm.Registry, folder)
@@ -329,9 +332,8 @@ func (dm *DependencyMap) buildDockerImage(folder string) {
 			}
 			dm.DockerImages[folder].BuildStatus = "failure"
 			log.Errorf("build failed for %s with err:\n%v", path, err)
-			return
+			return err
 		} else {
-			dm.DockerImages[folder].BuildStatus = "success"
 			if nonInteractive {
 				log.Infof("output of docker build %s\n%s", folder, dm.DockerImages[folder].Logs.String())
 			}
@@ -339,6 +341,7 @@ func (dm *DependencyMap) buildDockerImage(folder string) {
 		}
 	}
 	if !noPush {
+		dm.DockerImages[folder].BuildStatus = "pushing"
 		for _, tag := range tags {
 			if dryRun {
 				log.Warnf("would push %s", tag)
@@ -350,11 +353,12 @@ func (dm *DependencyMap) buildDockerImage(folder string) {
 				cmd.Stderr = dm.DockerImages[folder].Logs
 				err := cmd.Run()
 				if err != nil {
+					dm.DockerImages[folder].BuildStatus = "failure"
 					if nonInteractive {
 						log.Infof("output of docker push %s\n%s", tag, dm.DockerImages[folder].Logs.String())
 					}
 					log.Errorf("push failed for %s with err:\n%s", tag, err)
-					return
+					return err
 				}
 				if nonInteractive {
 					log.Infof("output of docker push %s\n%s", tag, dm.DockerImages[folder].Logs.String())
@@ -362,6 +366,8 @@ func (dm *DependencyMap) buildDockerImage(folder string) {
 			}
 		}
 	}
+	dm.DockerImages[folder].BuildStatus = "success"
+	return nil
 }
 
 func generateDependencyGraph(di DockerImages, basePath string) {
@@ -545,6 +551,8 @@ func (dm *DependencyMap) imagesView(g *gocui.Gui) error {
 		switch buildStatus := dockerImage.BuildStatus; buildStatus {
 		case "building":
 			fmt.Fprintln(v, fmt.Sprintf("\u001b[33m%s\u001b[0m", dm.DockerImages[primaryDockerImageFolder].Name))
+		case "pushing":
+			fmt.Fprintln(v, fmt.Sprintf("\u001b[36m%s\u001b[0m", dm.DockerImages[primaryDockerImageFolder].Name))
 		case "failure":
 			fmt.Fprintln(v, fmt.Sprintf("\u001b[31m%s\u001b[0m", dm.DockerImages[primaryDockerImageFolder].Name))
 		case "success":
@@ -571,6 +579,8 @@ func (dm *DependencyMap) printDependencies(v *gocui.View, baseImage string, inde
 				switch buildStatus := dockerImage.BuildStatus; buildStatus {
 				case "building":
 					fmt.Fprintln(v, fmt.Sprintf("%s%c \u001b[33m%s\u001b[0m", indentation, 8627, dm.DockerImages[key].Name))
+				case "pushing":
+					fmt.Fprintln(v, fmt.Sprintf("%s%c \u001b[36m%s\u001b[0m", indentation, 8627, dm.DockerImages[key].Name))
 				case "failure":
 					fmt.Fprintln(v, fmt.Sprintf("%s%c \u001b[31m%s\u001b[0m", indentation, 8627, dm.DockerImages[key].Name))
 				case "success":
