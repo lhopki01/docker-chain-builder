@@ -514,7 +514,9 @@ func (dm *DependencyMap) layout(g *gocui.Gui) error {
 func (dm *DependencyMap) logsView(g *gocui.Gui) error {
 	v, _ := g.View("logs")
 	v.Clear()
-	fmt.Fprintln(v, dm.Log.String())
+	regex, _ := regexp.Compile("\n\n")
+	logs := regex.ReplaceAllString(dm.Log.String(), "\n")
+	fmt.Fprintln(v, logs)
 	return nil
 }
 
