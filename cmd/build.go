@@ -55,6 +55,7 @@ type DockerImage struct {
 	DockerFile         []string
 	DockerFileFromLine int
 	Logs               *bytes.Buffer
+	YOrigin            int
 	BuildStatus        string
 }
 
@@ -429,6 +430,7 @@ func generateDockerImagesMap(path string, registry string) DockerImages {
 		dockerImage.Name = dirName
 		var buf bytes.Buffer
 		dockerImage.Logs = &buf
+		dockerImage.YOrigin = 0
 
 		di[dirName] = &dockerImage
 	}
@@ -442,7 +444,7 @@ func gui(dm *DependencyMap) {
 	}
 	defer g.Close()
 
-	g.Cursor = true
+	//g.Cursor = true
 	g.Mouse = false
 	g.SetManagerFunc(dm.layout)
 
@@ -501,12 +503,12 @@ func (dm *DependencyMap) layout(g *gocui.Gui) error {
 		dm.logsView(g)
 	}
 	if v, err := g.SetView("dockerLogs", maxX/3, -1, maxX, maxY-2); err != nil {
-		v.Autoscroll = true
+		//v.Autoscroll = true
 		v.Wrap = true
 		dm.dockerLogView(g)
 	}
 	if v, err := g.SetView("controls", -1, maxY-2, maxX, maxY); err != nil {
-		fmt.Fprintln(v, "\u001b[37;1m[Ctrl-C]\u001b[0m Quit  \u001b[37;1m[Up/Down]\u001b[0m Select building docker image")
+		fmt.Fprintln(v, "\u001b[37;1m[Ctrl-C]\u001b[0m Quit  \u001b[37;1m[Up/Down]\u001b[0m Select building docker image  \u001b[33mBuilding\u001b[0m  \u001b[36mPushing\u001b[0m  \u001b[31mFailed\u001b[0m  \u001b[32mDone\u001b[0m")
 	}
 	return nil
 }
@@ -514,9 +516,7 @@ func (dm *DependencyMap) layout(g *gocui.Gui) error {
 func (dm *DependencyMap) logsView(g *gocui.Gui) error {
 	v, _ := g.View("logs")
 	v.Clear()
-	regex, _ := regexp.Compile("\n\n")
-	logs := regex.ReplaceAllString(dm.Log.String(), "\n")
-	fmt.Fprintln(v, logs)
+	fmt.Fprintln(v, dm.Log.String())
 	return nil
 }
 
@@ -535,15 +535,48 @@ func (dm *DependencyMap) dockerLogView(g *gocui.Gui) error {
 	dockerImage, ok := dm.DockerImages[image]
 	if ok {
 		v.Clear()
+		//v.SetOrigin(0, dockerImage.YOrigin)
 		v.SetOrigin(0, 0)
-		fmt.Fprintln(v, dockerImage.Logs.String())
-
+		logs := dockerImage.Logs.String()
+		regex, _ := regexp.Compile("\r\n")
+		logs = regex.ReplaceAllString(logs, "\n")
+		regex, _ = regexp.Compile("\r")
+		logs = regex.ReplaceAllString(logs, "\n")
+		fmt.Fprintln(v, logs)
+		//ox, oy := v.Origin()
+		//dm.DockerImages[image].YOrigin = oy
+		//fmt.Fprintln(v, fmt.Sprintf("x: %d, y: %d", ox, oy))
 	}
 	return nil
 }
 
 func (dm *DependencyMap) imagesView(g *gocui.Gui) error {
 	v, _ := g.View("images")
+	_, cy := v.Cursor()
+	line, _ := v.Line(cy)
+
+	reg, err := regexp.Compile("[^a-zA-Z0-9-]+")
+	if err != nil {
+		log.Fatal(err)
+	}
+	image := reg.ReplaceAllString(strings.TrimSpace(line), "")
+	cursorDockerImage, ok := dm.DockerImages[image]
+	if ok {
+		switch buildStatus := cursorDockerImage.BuildStatus; buildStatus {
+		case "building":
+			v.SelFgColor = gocui.ColorYellow | gocui.AttrBold
+		case "pushing":
+			v.SelFgColor = gocui.ColorBlue | gocui.AttrBold
+		case "failure":
+			v.SelFgColor = gocui.ColorRed | gocui.AttrBold
+		case "success":
+			v.SelFgColor = gocui.ColorGreen | gocui.AttrBold
+		default:
+			v.SelFgColor = gocui.AttrBold
+		}
+	}
+
+	//v, _ := g.View("images")
 	v.Clear()
 	primaryDockerImageFolder := viper.GetString("imageFolder")
 
@@ -631,11 +664,13 @@ func (dm *DependencyMap) cursorUp(g *gocui.Gui, v *gocui.View) error {
 }
 
 func rightArrow(g *gocui.Gui, v *gocui.View) error {
+	g.Cursor = true
 	_, err := g.SetCurrentView("dockerLogs")
 	return err
 }
 
 func leftArrow(g *gocui.Gui, v *gocui.View) error {
+	g.Cursor = false
 	_, err := g.SetCurrentView("images")
 	return err
 }
