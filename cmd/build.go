@@ -503,7 +503,7 @@ func (dm *DependencyMap) layout(g *gocui.Gui) error {
 		dm.logsView(g)
 	}
 	if v, err := g.SetView("dockerLogs", maxX/3, -1, maxX, maxY-2); err != nil {
-		//v.Autoscroll = true
+		v.Autoscroll = true
 		v.Wrap = true
 		dm.dockerLogView(g)
 	}
