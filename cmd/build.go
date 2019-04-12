@@ -42,6 +42,7 @@ type DependencyMap struct {
 	BasePath        string
 	DockerImages    DockerImages
 	Log             *bytes.Buffer
+	Scroll          bool
 }
 
 type DockerImages map[string]*DockerImage
@@ -151,6 +152,7 @@ func (dm *DependencyMap) initDepencyMap() {
 	dm.SemverComponent = viper.GetString("semverComponent")
 	dm.BasePath = rootFolder
 	dm.DockerImages = di
+	dm.Scroll = true
 }
 
 func (dm *DependencyMap) build() {
@@ -536,7 +538,12 @@ func (dm *DependencyMap) dockerLogView(g *gocui.Gui) error {
 	if ok {
 		v.Clear()
 		//v.SetOrigin(0, dockerImage.YOrigin)
-		v.SetOrigin(0, 0)
+		//v.SetOrigin(0, 0)
+		if dm.Scroll {
+			v.Autoscroll = true
+		} else {
+			v.Autoscroll = false
+		}
 		logs := dockerImage.Logs.String()
 		regex, _ := regexp.Compile("\r\n")
 		logs = regex.ReplaceAllString(logs, "\n")
@@ -598,10 +605,15 @@ func (dm *DependencyMap) imagesView(g *gocui.Gui) error {
 	}
 	dm.printDependencies(v, baseImage, "  ")
 
+	//lines := v.BufferLines()
+	//for _, line := range lines {
+	//	fmt.Fprintln(v, strconv.Quote(line))
+	//}
 	return nil
 }
 
 func (dm *DependencyMap) printDependencies(v *gocui.View, baseImage string, indentation string) {
+	//keep a set order
 	keys := make([]string, 0, len(dm.DockerImages))
 	for key := range dm.DockerImages {
 		keys = append(keys, key)
@@ -636,12 +648,24 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 func (dm *DependencyMap) cursorDown(g *gocui.Gui, v *gocui.View) error {
 	if v != nil {
 		cx, cy := v.Cursor()
-		if err := v.SetCursor(cx, cy+1); err != nil {
-			ox, oy := v.Origin()
-			if err := v.SetOrigin(ox, oy+1); err != nil {
-				return err
+		if cy < len(v.ViewBufferLines())-2 {
+			if err := v.SetCursor(cx, cy+1); err != nil {
+				ox, oy := v.Origin()
+				if err := v.SetOrigin(ox, oy+1); err != nil {
+					return err
+				}
+			}
+		} else {
+			if v.Name() == "dockerLogs" {
+				dm.Scroll = true
 			}
 		}
+	}
+	if v.Name() == "imagesView" {
+		v, _ := g.View("dockerLogs")
+		v.Clear()
+		v.SetOrigin(0, 0)
+		//v.SetCursor(0, len(v.ViewBufferLines())-2)
 	}
 	g.Update(dm.imagesView)
 	g.Update(dm.dockerLogView)
@@ -657,6 +681,15 @@ func (dm *DependencyMap) cursorUp(g *gocui.Gui, v *gocui.View) error {
 				return err
 			}
 		}
+	}
+	if v.Name() == "dockerLogs" {
+		dm.Scroll = false
+	}
+	if v.Name() == "imagesView" {
+		v, _ := g.View("dockerLogs")
+		v.Clear()
+		v.SetOrigin(0, 0)
+		//v.SetCursor(0, len(v.ViewBufferLines())-2)
 	}
 	g.Update(dm.imagesView)
 	g.Update(dm.dockerLogView)
