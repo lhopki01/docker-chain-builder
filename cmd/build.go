@@ -57,6 +57,7 @@ type DockerImage struct {
 	Logs               *bytes.Buffer
 	YOrigin            int
 	BuildStatus        string
+	IsPrimary          bool
 }
 
 const (
@@ -77,19 +78,23 @@ var (
 	}
 )
 
-var dryRun bool
-var noPush bool
-var nonInteractive bool
-var verbose bool
+var (
+	bumpComponent  string
+	dryRun         bool
+	noCache        bool
+	nonInteractive bool
+	push           bool
+	verbose        bool
+)
 
 // buildCmd represents the build command
 var buildCmd = &cobra.Command{
-	Use:   fmt.Sprintf("build <source folder> <%s>", strings.Join(Versions, "|")),
+	Use:   fmt.Sprintf("build <source folder>"),
 	Short: "Build docker image and all docker images that depend on it",
 	Long:  `Find all images that depend on a specific source image and build them in order`,
 	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 2 {
-			return fmt.Errorf("please specify source folder and semvar component")
+		if len(args) != 1 {
+			return fmt.Errorf("please specify source folder")
 		}
 		if _, err := os.Stat(fmt.Sprintf("%s/Dockerfile", filepath.Clean(args[0]))); os.IsNotExist(err) {
 			return fmt.Errorf("no Dockerfile in %s", args[0])
@@ -102,7 +107,7 @@ var buildCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		viper.Set("rootFolder", filepath.Dir(filepath.Clean(args[0])))
 		viper.Set("imageFolder", filepath.Base(args[0]))
-		viper.Set("semverComponent", args[1])
+		viper.Set("semverComponent", bumpComponent)
 		loadConfFile()
 		if verbose {
 			log.SetLevel(log.DebugLevel)
@@ -126,11 +131,14 @@ var buildCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(buildCmd)
 
-	buildCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "show what would happen")
-	buildCmd.Flags().BoolVarP(&noPush, "no-push", "", false, "don't push images to registry")
-	buildCmd.Flags().BoolVarP(&nonInteractive, "non-interactive", "", false, "don't use the gui to display the build")
-	buildCmd.Flags().BoolVarP(&verbose, "verbose", "", false, "verbose mode")
+	helpBump := fmt.Sprintf("semver component to bump [%s]", strings.Join(Versions, "|"))
 
+	buildCmd.Flags().StringVar(&bumpComponent, "bump", VersionNone, helpBump)
+	buildCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "show what would happen")
+	buildCmd.Flags().BoolVar(&push, "no-cache", false, "do not use cache when building the images")
+	buildCmd.Flags().BoolVar(&push, "push", false, "push images to registry")
+	buildCmd.Flags().BoolVar(&nonInteractive, "noninteractive", false, "don't use the gui to display the build")
+	buildCmd.Flags().BoolVar(&verbose, "verbose", false, "verbose mode")
 }
 
 func loadConfFile() {
@@ -308,9 +316,13 @@ func (dm *DependencyMap) buildDockerImage(folder string) error {
 	command := "docker"
 	//args := []string{"build", "--pull"}
 	args := []string{"build"}
-	if !noPush {
+	if push {
 		args = append(args, "--pull")
 	}
+	if noCache && viper.GetString("imageFolder") == folder {
+		args = append(args, "--no-cache")
+	}
+
 	for _, tag := range tags {
 		args = append(args, "-t", tag)
 	}
@@ -341,7 +353,7 @@ func (dm *DependencyMap) buildDockerImage(folder string) error {
 			log.Infof("build succeeded for %s", path)
 		}
 	}
-	if !noPush {
+	if push {
 		dm.DockerImages[folder].BuildStatus = "pushing"
 		for _, tag := range tags {
 			if dryRun {
@@ -403,7 +415,7 @@ func generateDockerImagesMap(path string, registry string) DockerImages {
 	if err != nil {
 		log.Fatal(err)
 	}
-	for _, dir := range dirs {
+	for i, dir := range dirs {
 		dirName := dir.Name()
 		log.Debugf("processing %s", dirName)
 

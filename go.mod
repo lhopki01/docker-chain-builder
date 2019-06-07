@@ -1,4 +1,4 @@
-module github.com/lhopki01/docker-chain-builder
+module git.gechr.io/gechr/dcb
 
 require (
 	github.com/Masterminds/semver v1.4.2
