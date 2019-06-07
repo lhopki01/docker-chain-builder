@@ -50,14 +50,11 @@ type DockerImage struct {
 	Name               string
 	Image              string
 	Version            string
-	NewVersion         []string
 	FromImage          string
 	DockerFile         []string
 	DockerFileFromLine int
 	Logs               *bytes.Buffer
-	YOrigin            int
 	BuildStatus        string
-	IsPrimary          bool
 }
 
 const (
@@ -104,7 +101,6 @@ var buildCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		viper.Set("rootFolder", filepath.Dir(filepath.Clean(args[0])))
 		viper.Set("imageFolder", filepath.Base(args[0]))
-		viper.Set("semverComponent", bumpComponent)
 		loadConfFile()
 		if verbose {
 			log.SetLevel(log.DebugLevel)
@@ -132,7 +128,7 @@ func init() {
 
 	buildCmd.Flags().StringVar(&bumpComponent, "bump", VersionNone, helpBump)
 	buildCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "show what would happen")
-	buildCmd.Flags().BoolVar(&push, "no-cache", false, "do not use cache when building the images")
+	buildCmd.Flags().BoolVar(&noCache, "no-cache", false, "do not use cache when building the images")
 	buildCmd.Flags().BoolVar(&push, "push", false, "push images to registry")
 	buildCmd.Flags().BoolVar(&nonInteractive, "noninteractive", false, "don't use the gui to display the build")
 	buildCmd.Flags().BoolVar(&verbose, "verbose", false, "verbose mode")
@@ -150,12 +146,15 @@ func loadConfFile() {
 
 func (dm *DependencyMap) initDepencyMap() {
 	rootFolder := viper.GetString("rootFolder")
-	di := generateDockerImagesMap(rootFolder, viper.GetString("registry"))
 
 	dm.Registry = viper.GetString("registry")
-	dm.SemverComponent = viper.GetString("semverComponent")
+	if isValidVersion(bumpComponent) {
+		dm.SemverComponent = bumpComponent
+	} else {
+		log.Fatalf("%s invalid; choose from %v", bumpComponent, Versions)
+	}
 	dm.BasePath = rootFolder
-	dm.DockerImages = di
+	dm.DockerImages = generateDockerImagesMap(rootFolder, viper.GetString("registry"))
 }
 
 func (dm *DependencyMap) build() {
@@ -163,10 +162,7 @@ func (dm *DependencyMap) build() {
 	log.Debugf("%v", dm)
 	primaryDockerImageFolder := viper.GetString("imageFolder")
 	dm.updateVersions([]string{primaryDockerImageFolder}, false)
-	dm.buildDockerImages([]string{primaryDockerImageFolder}, false)
-
-	//di = generateDockerImagesMap(rootFolder, viper.GetString("registry"))
-	//generateDependencyGraph(di, rootFolder)
+	dm.buildDockerImages([]string{primaryDockerImageFolder})
 }
 
 func isValidVersion(version string) bool {
@@ -276,7 +272,7 @@ func (dm *DependencyMap) updateVersions(images []string, increment bool) {
 		}
 	}
 }
-func (dm *DependencyMap) buildDockerImages(images []string, increment bool) {
+func (dm *DependencyMap) buildDockerImages(images []string) {
 	var wg sync.WaitGroup
 	for _, folder := range images {
 		wg.Add(1)
@@ -293,7 +289,7 @@ func (dm *DependencyMap) buildDockerImages(images []string, increment bool) {
 				}
 			}
 			if len(dependentImages) > 0 {
-				dm.buildDockerImages(dependentImages, true)
+				dm.buildDockerImages(dependentImages)
 			}
 			wg.Done()
 		}(folder, *dm, &wg)
@@ -311,12 +307,11 @@ func (dm *DependencyMap) buildDockerImage(folder string) error {
 	}
 
 	command := "docker"
-	//args := []string{"build", "--pull"}
 	args := []string{"build"}
 	if push {
 		args = append(args, "--pull")
 	}
-	if noCache && viper.GetString("imageFolder") == folder {
+	if noCache {
 		args = append(args, "--no-cache")
 	}
 
@@ -439,7 +434,6 @@ func generateDockerImagesMap(path string, registry string) DockerImages {
 		dockerImage.Name = dirName
 		var buf bytes.Buffer
 		dockerImage.Logs = &buf
-		dockerImage.YOrigin = 0
 
 		di[dirName] = &dockerImage
 	}
@@ -544,7 +538,6 @@ func (dm *DependencyMap) dockerLogView(g *gocui.Gui) error {
 	dockerImage, ok := dm.DockerImages[image]
 	if ok {
 		v.Clear()
-		//v.SetOrigin(0, dockerImage.YOrigin)
 		v.SetOrigin(0, 0)
 		logs := dockerImage.Logs.String()
 		regex, _ := regexp.Compile("\r\n")
@@ -552,9 +545,6 @@ func (dm *DependencyMap) dockerLogView(g *gocui.Gui) error {
 		regex, _ = regexp.Compile("\r")
 		logs = regex.ReplaceAllString(logs, "\n")
 		fmt.Fprintln(v, logs)
-		//ox, oy := v.Origin()
-		//dm.DockerImages[image].YOrigin = oy
-		//fmt.Fprintln(v, fmt.Sprintf("x: %d, y: %d", ox, oy))
 	}
 	return nil
 }
@@ -585,7 +575,6 @@ func (dm *DependencyMap) imagesView(g *gocui.Gui) error {
 		}
 	}
 
-	//v, _ := g.View("images")
 	v.Clear()
 	primaryDockerImageFolder := viper.GetString("imageFolder")
 

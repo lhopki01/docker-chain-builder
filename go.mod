@@ -8,6 +8,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/nsf/termbox-go v0.0.0-20190325093121-288510b9734e // indirect
+	github.com/prometheus/common v0.4.1
 	github.com/sirupsen/logrus v1.4.0
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cobra v0.0.3
