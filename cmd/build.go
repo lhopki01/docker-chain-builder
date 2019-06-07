@@ -99,9 +99,6 @@ var buildCmd = &cobra.Command{
 		if _, err := os.Stat(fmt.Sprintf("%s/Dockerfile", filepath.Clean(args[0]))); os.IsNotExist(err) {
 			return fmt.Errorf("no Dockerfile in %s", args[0])
 		}
-		if !isValidVersion(args[1]) {
-			return fmt.Errorf("please specify one of %s", Versions)
-		}
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
@@ -415,7 +412,7 @@ func generateDockerImagesMap(path string, registry string) DockerImages {
 	if err != nil {
 		log.Fatal(err)
 	}
-	for i, dir := range dirs {
+	for _, dir := range dirs {
 		dirName := dir.Name()
 		log.Debugf("processing %s", dirName)
 
