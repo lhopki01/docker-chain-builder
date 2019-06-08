@@ -50,12 +50,10 @@ type DockerImage struct {
 	Name               string
 	Image              string
 	Version            string
-	NewVersion         []string
 	FromImage          string
 	DockerFile         []string
 	DockerFileFromLine int
 	Logs               *bytes.Buffer
-	YOrigin            int
 	BuildStatus        string
 }
 
@@ -77,32 +75,32 @@ var (
 	}
 )
 
-var dryRun bool
-var noPush bool
-var nonInteractive bool
-var verbose bool
+var (
+	bumpComponent  string
+	dryRun         bool
+	noCache        bool
+	nonInteractive bool
+	push           bool
+	verbose        bool
+)
 
 // buildCmd represents the build command
 var buildCmd = &cobra.Command{
-	Use:   fmt.Sprintf("build <source folder> <%s>", strings.Join(Versions, "|")),
+	Use:   fmt.Sprintf("build <source folder>"),
 	Short: "Build docker image and all docker images that depend on it",
 	Long:  `Find all images that depend on a specific source image and build them in order`,
 	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 2 {
-			return fmt.Errorf("please specify source folder and semvar component")
+		if len(args) != 1 {
+			return fmt.Errorf("please specify source folder")
 		}
 		if _, err := os.Stat(fmt.Sprintf("%s/Dockerfile", filepath.Clean(args[0]))); os.IsNotExist(err) {
 			return fmt.Errorf("no Dockerfile in %s", args[0])
-		}
-		if !isValidVersion(args[1]) {
-			return fmt.Errorf("please specify one of %s", Versions)
 		}
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		viper.Set("rootFolder", filepath.Dir(filepath.Clean(args[0])))
 		viper.Set("imageFolder", filepath.Base(args[0]))
-		viper.Set("semverComponent", args[1])
 		loadConfFile()
 		if verbose {
 			log.SetLevel(log.DebugLevel)
@@ -126,11 +124,14 @@ var buildCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(buildCmd)
 
-	buildCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "show what would happen")
-	buildCmd.Flags().BoolVarP(&noPush, "no-push", "", false, "don't push images to registry")
-	buildCmd.Flags().BoolVarP(&nonInteractive, "non-interactive", "", false, "don't use the gui to display the build")
-	buildCmd.Flags().BoolVarP(&verbose, "verbose", "", false, "verbose mode")
+	helpBump := fmt.Sprintf("semver component to bump [%s]", strings.Join(Versions, "|"))
 
+	buildCmd.Flags().StringVar(&bumpComponent, "bump", VersionNone, helpBump)
+	buildCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "show what would happen")
+	buildCmd.Flags().BoolVar(&noCache, "no-cache", false, "do not use cache when building the images")
+	buildCmd.Flags().BoolVar(&push, "push", false, "push images to registry")
+	buildCmd.Flags().BoolVar(&nonInteractive, "noninteractive", false, "don't use the gui to display the build")
+	buildCmd.Flags().BoolVar(&verbose, "verbose", false, "verbose mode")
 }
 
 func loadConfFile() {
@@ -145,12 +146,15 @@ func loadConfFile() {
 
 func (dm *DependencyMap) initDepencyMap() {
 	rootFolder := viper.GetString("rootFolder")
-	di := generateDockerImagesMap(rootFolder, viper.GetString("registry"))
 
 	dm.Registry = viper.GetString("registry")
-	dm.SemverComponent = viper.GetString("semverComponent")
+	if isValidVersion(bumpComponent) {
+		dm.SemverComponent = bumpComponent
+	} else {
+		log.Fatalf("%s invalid; choose from %v", bumpComponent, Versions)
+	}
 	dm.BasePath = rootFolder
-	dm.DockerImages = di
+	dm.DockerImages = generateDockerImagesMap(rootFolder, viper.GetString("registry"))
 }
 
 func (dm *DependencyMap) build() {
@@ -158,10 +162,7 @@ func (dm *DependencyMap) build() {
 	log.Debugf("%v", dm)
 	primaryDockerImageFolder := viper.GetString("imageFolder")
 	dm.updateVersions([]string{primaryDockerImageFolder}, false)
-	dm.buildDockerImages([]string{primaryDockerImageFolder}, false)
-
-	//di = generateDockerImagesMap(rootFolder, viper.GetString("registry"))
-	//generateDependencyGraph(di, rootFolder)
+	dm.buildDockerImages([]string{primaryDockerImageFolder})
 }
 
 func isValidVersion(version string) bool {
@@ -271,7 +272,7 @@ func (dm *DependencyMap) updateVersions(images []string, increment bool) {
 		}
 	}
 }
-func (dm *DependencyMap) buildDockerImages(images []string, increment bool) {
+func (dm *DependencyMap) buildDockerImages(images []string) {
 	var wg sync.WaitGroup
 	for _, folder := range images {
 		wg.Add(1)
@@ -288,7 +289,7 @@ func (dm *DependencyMap) buildDockerImages(images []string, increment bool) {
 				}
 			}
 			if len(dependentImages) > 0 {
-				dm.buildDockerImages(dependentImages, true)
+				dm.buildDockerImages(dependentImages)
 			}
 			wg.Done()
 		}(folder, *dm, &wg)
@@ -306,11 +307,14 @@ func (dm *DependencyMap) buildDockerImage(folder string) error {
 	}
 
 	command := "docker"
-	//args := []string{"build", "--pull"}
 	args := []string{"build"}
-	if !noPush {
+	if push {
 		args = append(args, "--pull")
 	}
+	if noCache {
+		args = append(args, "--no-cache")
+	}
+
 	for _, tag := range tags {
 		args = append(args, "-t", tag)
 	}
@@ -341,7 +345,7 @@ func (dm *DependencyMap) buildDockerImage(folder string) error {
 			log.Infof("build succeeded for %s", path)
 		}
 	}
-	if !noPush {
+	if push {
 		dm.DockerImages[folder].BuildStatus = "pushing"
 		for _, tag := range tags {
 			if dryRun {
@@ -430,7 +434,6 @@ func generateDockerImagesMap(path string, registry string) DockerImages {
 		dockerImage.Name = dirName
 		var buf bytes.Buffer
 		dockerImage.Logs = &buf
-		dockerImage.YOrigin = 0
 
 		di[dirName] = &dockerImage
 	}
@@ -535,7 +538,6 @@ func (dm *DependencyMap) dockerLogView(g *gocui.Gui) error {
 	dockerImage, ok := dm.DockerImages[image]
 	if ok {
 		v.Clear()
-		//v.SetOrigin(0, dockerImage.YOrigin)
 		v.SetOrigin(0, 0)
 		logs := dockerImage.Logs.String()
 		regex, _ := regexp.Compile("\r\n")
@@ -543,9 +545,6 @@ func (dm *DependencyMap) dockerLogView(g *gocui.Gui) error {
 		regex, _ = regexp.Compile("\r")
 		logs = regex.ReplaceAllString(logs, "\n")
 		fmt.Fprintln(v, logs)
-		//ox, oy := v.Origin()
-		//dm.DockerImages[image].YOrigin = oy
-		//fmt.Fprintln(v, fmt.Sprintf("x: %d, y: %d", ox, oy))
 	}
 	return nil
 }
@@ -576,7 +575,6 @@ func (dm *DependencyMap) imagesView(g *gocui.Gui) error {
 		}
 	}
 
-	//v, _ := g.View("images")
 	v.Clear()
 	primaryDockerImageFolder := viper.GetString("imageFolder")
 

@@ -20,13 +20,36 @@ Create a VERSION file in each folder with an initial version.
 Create a file called conf.yaml in the folder containing all the Dockerfile folders.
 Put `registry: name-of-regisry` in it.   All images will be pushed here.
 
+```
+test_dirs
+├── conf.yaml
+├── alpha
+│   ├── Dockerfile
+│   └── VERSION
+├── alpha-2
+│   ├── Dockerfile
+│   └── VERSION
+├── alpha-2-beta
+│   ├── Dockerfile
+│   └── VERSION
+├── alpha-1
+│   ├── Dockerfile
+│   └── VERSION
+├── charlie
+│   ├── Dockerfile
+│   └── VERSION
+└── charlie-1
+    ├── Dockerfile
+    └── VERSION
+```
+
 ## Usage
 
 ### Dry-run
-docker-chain-builder build [path/to/dockerfilefolder] [major,minor,patch,pre] -n
+docker-chain-builder build [path/to/dockerfilefolder] --bump [major,minor,patch,pre,none] -n
+
+### Build
+docker-chain-builder build [path/to/dockerfilefolder] --bump [major,minor,patch,pre,none]
 
 ### Build and push
-docker-chain-builder build [path/to/dockerfilefolder] [major,minor,patch,pre]
-
-
-
+docker-chain-builder build [path/to/dockerfilefolder] --bump [major,minor,patch,pre,none] --push
