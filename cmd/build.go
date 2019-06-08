@@ -17,7 +17,6 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -42,6 +41,7 @@ type DependencyMap struct {
 	BasePath        string
 	DockerImages    DockerImages
 	Log             *bytes.Buffer
+	RootImages      []string
 }
 
 type DockerImages map[string]*DockerImage
@@ -86,21 +86,22 @@ var (
 
 // buildCmd represents the build command
 var buildCmd = &cobra.Command{
-	Use:   fmt.Sprintf("build <source folder>"),
+	Use:   fmt.Sprintf("build <source folder(s)>"),
 	Short: "Build docker image and all docker images that depend on it",
-	Long:  `Find all images that depend on a specific source image and build them in order`,
+	Long:  `Find all images that depend on specified source images and build them in order`,
 	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 1 {
-			return fmt.Errorf("please specify source folder")
+		if len(args) < 1 {
+			return fmt.Errorf("please specify at least one source folder")
 		}
-		if _, err := os.Stat(fmt.Sprintf("%s/Dockerfile", filepath.Clean(args[0]))); os.IsNotExist(err) {
-			return fmt.Errorf("no Dockerfile in %s", args[0])
+		for _, arg := range args {
+			if _, err := os.Stat(fmt.Sprintf("%s/Dockerfile", filepath.Clean(arg))); os.IsNotExist(err) {
+				return fmt.Errorf("no Dockerfile in %s\n", arg)
+			}
 		}
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		viper.Set("rootFolder", filepath.Dir(filepath.Clean(args[0])))
-		viper.Set("imageFolder", filepath.Base(args[0]))
 		loadConfFile()
 		if verbose {
 			log.SetLevel(log.DebugLevel)
@@ -108,7 +109,7 @@ var buildCmd = &cobra.Command{
 			log.SetLevel(log.InfoLevel)
 		}
 		dm := DependencyMap{}
-		dm.initDepencyMap()
+		dm.initDepencyMap(args)
 		if nonInteractive || dryRun {
 			dm.build()
 		} else {
@@ -131,7 +132,7 @@ func init() {
 	buildCmd.Flags().BoolVar(&noCache, "no-cache", false, "do not use cache when building the images")
 	buildCmd.Flags().BoolVar(&push, "push", false, "push images to registry")
 	buildCmd.Flags().BoolVar(&nonInteractive, "noninteractive", false, "don't use the gui to display the build")
-	buildCmd.Flags().BoolVar(&verbose, "verbose", false, "verbose mode")
+	buildCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "verbose mode")
 }
 
 func loadConfFile() {
@@ -144,34 +145,76 @@ func loadConfFile() {
 	}
 }
 
-func (dm *DependencyMap) initDepencyMap() {
-	rootFolder := viper.GetString("rootFolder")
+func (dm *DependencyMap) initDepencyMap(args []string) {
 
 	dm.Registry = viper.GetString("registry")
-	if isValidVersion(bumpComponent) {
+
+	if stringInSlice(bumpComponent, Versions) {
 		dm.SemverComponent = bumpComponent
 	} else {
 		log.Fatalf("%s invalid; choose from %v", bumpComponent, Versions)
 	}
-	dm.BasePath = rootFolder
-	dm.DockerImages = generateDockerImagesMap(rootFolder, viper.GetString("registry"))
+
+	dm.BasePath = viper.GetString("rootFolder")
+
+	dm.DockerImages = generateDockerImagesMap(dm.BasePath, dm.Registry)
+
+	dm.RootImages = dm.getRootFolders(args)
+}
+
+func (dm *DependencyMap) getRootFolders(args []string) []string {
+	var argImages []string
+	for _, arg := range args {
+		argImages = append(argImages, filepath.Base(arg))
+	}
+
+	var buildImages []string
+	for _, argImage := range argImages {
+		buildImages = append(buildImages, dm.getChildren(argImage)...)
+	}
+	log.Debugf("Going to build children %v", buildImages)
+
+	var rootImages []string
+	for _, argImage := range argImages {
+		if !stringInSlice(argImage, buildImages) {
+			rootImages = append(rootImages, argImage)
+		}
+	}
+	log.Debugf("Root images are %v", rootImages)
+
+	return rootImages
+}
+
+func stringInSlice(str string, slc []string) bool {
+	for _, s := range slc {
+		if s == str {
+			return true
+		}
+	}
+	return false
+}
+
+func (dm *DependencyMap) getChildren(folder string) []string {
+	var children []string
+	for key, dockerImage := range dm.DockerImages {
+		log.Debugf("Comparing %s to %s\n", dockerImage.FromImage, dm.DockerImages[folder].Image)
+		if dockerImage.FromImage == dm.DockerImages[folder].Image {
+			children = append(children, key)
+		}
+	}
+	if len(children) > 0 {
+		for _, child := range children {
+			children = append(children, dm.getChildren(child)...)
+		}
+	}
+	return children
 }
 
 func (dm *DependencyMap) build() {
 	//log.SetLevel(log.ErrorLevel)
 	log.Debugf("%v", dm)
-	primaryDockerImageFolder := viper.GetString("imageFolder")
-	dm.updateVersions([]string{primaryDockerImageFolder}, false)
-	dm.buildDockerImages([]string{primaryDockerImageFolder})
-}
-
-func isValidVersion(version string) bool {
-	for _, v := range Versions {
-		if v == version {
-			return true
-		}
-	}
-	return false
+	dm.updateVersions(dm.RootImages, false)
+	dm.buildDockerImages(dm.RootImages)
 }
 
 func bumpVersion(version string, semverComponent string) (newVersion []string) {
@@ -375,32 +418,6 @@ func (dm *DependencyMap) buildDockerImage(folder string) error {
 	return nil
 }
 
-func generateDependencyGraph(di DockerImages, basePath string) {
-	dependencyGraphTemplate := `
-digraph G {
-  node [shape=rectangle];
-  rankdir=LR;
-  splines=polyline;
-{{- range $_, $elem := . }}
-{{ printf "  \"%s\" -> \"%s\";" $elem.FromImage $elem.Image }}
-{{- end }}
-}
-`
-	t := template.Must(template.New("dependencyGraphTemplate").Parse(dependencyGraphTemplate))
-	renderedScript := new(bytes.Buffer)
-
-	err := t.Execute(renderedScript, di)
-	if err != nil {
-		log.Fatalf("could not parse template: %+v", err)
-	}
-	stringData := renderedScript.String()
-	file := fmt.Sprintf("%s/Dependency_Graph.dot", basePath)
-	err = ioutil.WriteFile(file, []byte(stringData), 0644)
-	if err != nil {
-		log.Fatalf("couldn't write %s to file %s", stringData, file)
-	}
-}
-
 func generateDockerImagesMap(path string, registry string) DockerImages {
 	di := make(DockerImages)
 	dirs, err := ioutil.ReadDir(path)
@@ -430,7 +447,7 @@ func generateDockerImagesMap(path string, registry string) DockerImages {
 		versionFile, _ := ioutil.ReadFile(fmt.Sprintf("%s/%s/VERSION", path, dirName))
 		versionFileLines := strings.Split(string(versionFile), "\n")
 		dockerImage.Version = strings.Replace(versionFileLines[0], "\n", "", 1)
-		dockerImage.Image = fmt.Sprintf(fmt.Sprintf("%s/%s:%s", registry, dirName, dockerImage.Version))
+		dockerImage.Image = fmt.Sprintf("%s/%s:%s", registry, dirName, dockerImage.Version)
 		dockerImage.Name = dirName
 		var buf bytes.Buffer
 		dockerImage.Logs = &buf
@@ -495,7 +512,11 @@ func (dm *DependencyMap) layout(g *gocui.Gui) error {
 		v.Highlight = true
 		v.SelFgColor = gocui.AttrBold
 
-		dm.imagesView(g)
+		err = dm.imagesView(g)
+		if err != nil {
+			log.Error(err)
+		}
+
 		if _, err := g.SetCurrentView("images"); err != nil {
 			return err
 		}
@@ -503,15 +524,21 @@ func (dm *DependencyMap) layout(g *gocui.Gui) error {
 	if v, err := g.SetView("logs", -1, maxY/3*2, maxX/3, maxY-2); err != nil {
 		v.Autoscroll = true
 		v.Wrap = true
-		dm.logsView(g)
+		err = dm.logsView(g)
+		if err != nil {
+			log.Error(err)
+		}
 	}
 	if v, err := g.SetView("dockerLogs", maxX/3, -1, maxX, maxY-2); err != nil {
 		v.Autoscroll = true
 		v.Wrap = true
-		dm.dockerLogView(g)
+		err := dm.dockerLogView(g)
+		if err != nil {
+			log.Error(err)
+		}
 	}
 	if v, err := g.SetView("controls", -1, maxY-2, maxX, maxY); err != nil {
-		fmt.Fprintln(v, "\u001b[37;1m[Ctrl-C]\u001b[0m Quit  \u001b[37;1m[Up/Down]\u001b[0m Select building docker image  \u001b[33mBuilding\u001b[0m  \u001b[36mPushing\u001b[0m  \u001b[31mFailed\u001b[0m  \u001b[32mDone\u001b[0m")
+		fmt.Fprintln(v, "\u001b[37;1m[Ctrl-C]\u001b[0m Quit  \u001b[37;1m[Up/Down]\u001b[0m Select image  \u001b[33mBuilding\u001b[0m  \u001b[36mPushing\u001b[0m  \u001b[31mFailed\u001b[0m  \u001b[32mDone\u001b[0m")
 	}
 	return nil
 }
@@ -538,7 +565,11 @@ func (dm *DependencyMap) dockerLogView(g *gocui.Gui) error {
 	dockerImage, ok := dm.DockerImages[image]
 	if ok {
 		v.Clear()
-		v.SetOrigin(0, 0)
+		err = v.SetOrigin(0, 0)
+		if err != nil {
+			log.Error(err)
+		}
+
 		logs := dockerImage.Logs.String()
 		regex, _ := regexp.Compile("\r\n")
 		logs = regex.ReplaceAllString(logs, "\n")
@@ -576,30 +607,14 @@ func (dm *DependencyMap) imagesView(g *gocui.Gui) error {
 	}
 
 	v.Clear()
-	primaryDockerImageFolder := viper.GetString("imageFolder")
-
-	baseImage := fmt.Sprint(dm.DockerImages[primaryDockerImageFolder].Image)
-	dockerImage, ok := dm.DockerImages[primaryDockerImageFolder]
-	if ok {
-		switch buildStatus := dockerImage.BuildStatus; buildStatus {
-		case "building":
-			fmt.Fprintln(v, fmt.Sprintf("\u001b[33m%s\u001b[0m", dm.DockerImages[primaryDockerImageFolder].Name))
-		case "pushing":
-			fmt.Fprintln(v, fmt.Sprintf("\u001b[36m%s\u001b[0m", dm.DockerImages[primaryDockerImageFolder].Name))
-		case "failure":
-			fmt.Fprintln(v, fmt.Sprintf("\u001b[31m%s\u001b[0m", dm.DockerImages[primaryDockerImageFolder].Name))
-		case "success":
-			fmt.Fprintln(v, fmt.Sprintf("\u001b[32m%s\u001b[0m", dm.DockerImages[primaryDockerImageFolder].Name))
-		default:
-			fmt.Fprintln(v, fmt.Sprintf("\u001b[0m%s", dm.DockerImages[primaryDockerImageFolder].Name))
-		}
+	for _, image := range dm.RootImages {
+		dm.printImage(v, image, "")
+		dm.printDependencies(v, dm.DockerImages[image].Image, "  ↳ ")
 	}
-	dm.printDependencies(v, baseImage, "  ")
-
 	return nil
 }
 
-func (dm *DependencyMap) printDependencies(v *gocui.View, baseImage string, indentation string) {
+func (dm *DependencyMap) printDependencies(v *gocui.View, baseImage string, prefix string) {
 	keys := make([]string, 0, len(dm.DockerImages))
 	for key := range dm.DockerImages {
 		keys = append(keys, key)
@@ -607,22 +622,26 @@ func (dm *DependencyMap) printDependencies(v *gocui.View, baseImage string, inde
 	sort.Strings(keys)
 	for _, key := range keys {
 		if dm.DockerImages[key].FromImage == baseImage {
-			dockerImage, ok := dm.DockerImages[key]
-			if ok {
-				switch buildStatus := dockerImage.BuildStatus; buildStatus {
-				case "building":
-					fmt.Fprintln(v, fmt.Sprintf("%s%c \u001b[33m%s\u001b[0m", indentation, 8627, dm.DockerImages[key].Name))
-				case "pushing":
-					fmt.Fprintln(v, fmt.Sprintf("%s%c \u001b[36m%s\u001b[0m", indentation, 8627, dm.DockerImages[key].Name))
-				case "failure":
-					fmt.Fprintln(v, fmt.Sprintf("%s%c \u001b[31m%s\u001b[0m", indentation, 8627, dm.DockerImages[key].Name))
-				case "success":
-					fmt.Fprintln(v, fmt.Sprintf("%s%c \u001b[32m%s\u001b[0m", indentation, 8627, dm.DockerImages[key].Name))
-				default:
-					fmt.Fprintln(v, fmt.Sprintf("%s%c \u001b[0m%s", indentation, 8627, dm.DockerImages[key].Name))
-				}
-			}
-			dm.printDependencies(v, dm.DockerImages[key].Image, fmt.Sprintf("  %s", indentation))
+			dm.printImage(v, key, prefix)
+			dm.printDependencies(v, dm.DockerImages[key].Image, fmt.Sprintf("  %s", prefix))
+		}
+	}
+}
+
+func (dm *DependencyMap) printImage(v *gocui.View, image string, prefix string) {
+	dockerImage, ok := dm.DockerImages[image]
+	if ok {
+		switch buildStatus := dockerImage.BuildStatus; buildStatus {
+		case "building":
+			fmt.Fprintln(v, fmt.Sprintf("%s\u001b[33m%s\u001b[0m", prefix, dm.DockerImages[image].Name))
+		case "pushing":
+			fmt.Fprintln(v, fmt.Sprintf("%s\u001b[36m%s\u001b[0m", prefix, dm.DockerImages[image].Name))
+		case "failure":
+			fmt.Fprintln(v, fmt.Sprintf("%s\u001b[31m%s\u001b[0m", prefix, dm.DockerImages[image].Name))
+		case "success":
+			fmt.Fprintln(v, fmt.Sprintf("%s\u001b[32m%s\u001b[0m", prefix, dm.DockerImages[image].Name))
+		default:
+			fmt.Fprintln(v, fmt.Sprintf("%s\u001b[0m%s", prefix, dm.DockerImages[image].Name))
 		}
 	}
 }
