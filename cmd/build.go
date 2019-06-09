@@ -88,7 +88,9 @@ var (
 var buildCmd = &cobra.Command{
 	Use:   fmt.Sprintf("build <source folder(s)>"),
 	Short: "Build docker image and all docker images that depend on it",
-	Long:  `Find all images that depend on specified source images and build them in order`,
+	Long: `Find all images that depend on specified source images and build them in order.
+If multiple source folders are specified they are deduplicated and each dependency chain is only walked once.
+All source folders must be in the same folder.`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return fmt.Errorf("please specify at least one source folder")
@@ -131,7 +133,7 @@ func init() {
 	buildCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "show what would happen")
 	buildCmd.Flags().BoolVar(&noCache, "no-cache", false, "do not use cache when building the images")
 	buildCmd.Flags().BoolVar(&push, "push", false, "push images to registry")
-	buildCmd.Flags().BoolVar(&nonInteractive, "noninteractive", false, "don't use the gui to display the build")
+	buildCmd.Flags().BoolVar(&nonInteractive, "non-interactive", false, "don't use the gui to display the build")
 	buildCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "verbose mode")
 }
 
