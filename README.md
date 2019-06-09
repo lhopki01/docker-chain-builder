@@ -7,12 +7,13 @@ All versions are in semver.
 Individual docker images that are not part of a chain can be built too.
 If fed a list of images docker-chain-builder will figure out which images are the start of chains and build all the chains simultaneously.
 
+![](images/demo.gif)
+
 ## Installation
 
 ```
 brew tap lhopki01/docker-chain-builder git@github.com:lhopki01/docker-chain-builder
 brew install docker-chain-builder
-
 ```
 
 ## Setup
