@@ -59,7 +59,7 @@ func init() {
 
 	helpBump := fmt.Sprintf("semver component to bump [%s] Required", strings.Join(BumpVersions, "|"))
 
-	bumpCmd.Flags().StringVar(&bumpComponent, "bump", "", helpBump)
+	bumpCmd.Flags().StringVar(&bumpComponent, "bump", VersionNone, helpBump)
 	bumpCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "show what would happen")
 	bumpCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "verbose mode")
 }

@@ -95,11 +95,6 @@ All source folders must be in the same folder.`,
 		if len(args) < 1 {
 			return fmt.Errorf("please specify at least one source folder")
 		}
-		for _, arg := range args {
-			if _, err := os.Stat(fmt.Sprintf("%s/Dockerfile", filepath.Clean(arg))); os.IsNotExist(err) {
-				return fmt.Errorf("no Dockerfile in %s\n", arg)
-			}
-		}
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
@@ -110,14 +105,17 @@ All source folders must be in the same folder.`,
 		} else {
 			log.SetLevel(log.InfoLevel)
 		}
+		var buf bytes.Buffer
+		if !nonInteractive && !dryRun {
+			log.SetLevel(log.WarnLevel)
+			log.SetOutput(&buf)
+		}
 		dm := DependencyMap{}
 		dm.initDepencyMap(args)
 		if nonInteractive || dryRun {
 			dm.build()
 		} else {
-			var buf bytes.Buffer
 			dm.Log = &buf
-			log.SetOutput(dm.Log)
 			go dm.build()
 			gui(&dm)
 		}
@@ -128,8 +126,8 @@ func init() {
 	rootCmd.AddCommand(buildCmd)
 
 	helpBump := fmt.Sprintf("semver component to bump [%s]", strings.Join(Versions, "|"))
-
 	buildCmd.Flags().StringVar(&bumpComponent, "bump", VersionNone, helpBump)
+
 	buildCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "show what would happen")
 	buildCmd.Flags().BoolVar(&noCache, "no-cache", false, "do not use cache when building the images")
 	buildCmd.Flags().BoolVar(&push, "push", false, "push images to registry")
@@ -154,7 +152,8 @@ func (dm *DependencyMap) initDepencyMap(args []string) {
 	if stringInSlice(bumpComponent, Versions) {
 		dm.SemverComponent = bumpComponent
 	} else {
-		log.Fatalf("%s invalid; choose from %v", bumpComponent, Versions)
+		log.SetOutput(os.Stderr)
+		log.Fatalf("%s invalid semver component; choose from %v", bumpComponent, Versions)
 	}
 
 	dm.BasePath = viper.GetString("rootFolder")
@@ -167,7 +166,12 @@ func (dm *DependencyMap) initDepencyMap(args []string) {
 func (dm *DependencyMap) getRootFolders(args []string) []string {
 	var argImages []string
 	for _, arg := range args {
-		argImages = append(argImages, filepath.Base(arg))
+		if _, err := os.Stat(fmt.Sprintf("%s/Dockerfile", filepath.Clean(arg))); err != nil {
+			log.Warnf("no Dockerfile in %s\n", arg)
+			continue
+		} else {
+			argImages = append(argImages, filepath.Base(arg))
+		}
 	}
 
 	var buildImages []string
@@ -197,19 +201,23 @@ func stringInSlice(str string, slc []string) bool {
 }
 
 func (dm *DependencyMap) getChildren(folder string) []string {
-	var children []string
-	for key, dockerImage := range dm.DockerImages {
-		log.Debugf("Comparing %s to %s\n", dockerImage.FromImage, dm.DockerImages[folder].Image)
-		if dockerImage.FromImage == dm.DockerImages[folder].Image {
-			children = append(children, key)
+	folderDockerImage, ok := dm.DockerImages[folder]
+	if ok {
+		var children []string
+		for key, dockerImage := range dm.DockerImages {
+			log.Debugf("Comparing %s to %s\n", dockerImage.FromImage, folderDockerImage.Image)
+			if dockerImage.FromImage == folderDockerImage.Image {
+				children = append(children, key)
+			}
 		}
-	}
-	if len(children) > 0 {
-		for _, child := range children {
-			children = append(children, dm.getChildren(child)...)
+		if len(children) > 0 {
+			for _, child := range children {
+				children = append(children, dm.getChildren(child)...)
+			}
 		}
+		return children
 	}
-	return children
+	return []string{}
 }
 
 func (dm *DependencyMap) build() {
