@@ -1,0 +1,259 @@
+# The configurations that used for the recording, feel free to edit them
+config:
+
+  # Specify a command to be executed
+  # like `/bin/bash -l`, `ls`, or any other commands
+  # the default is bash for Linux
+  # or powershell.exe for Windows
+  command: bash -l
+  
+  # Specify the current working directory path
+  # the default is the current working directory path
+  cwd: /Users/lhopki01/github/lhopki01/docker-chain-builder
+  
+  # Export additional ENV variables
+  env:
+    recording: true
+  
+  # Explicitly set the number of columns
+  # or use `auto` to take the current
+  # number of columns of your shell
+  cols: 115
+  
+  # Explicitly set the number of rows
+  # or use `auto` to take the current
+  # number of rows of your shell
+  rows: 30
+  
+  # Amount of times to repeat GIF
+  # If value is -1, play once
+  # If value is 0, loop indefinitely
+  # If value is a positive number, loop n times
+  repeat: 0
+  
+  # Quality
+  # 1 - 100
+  quality: 100
+  
+  # Delay between frames in ms
+  # If the value is `auto` use the actual recording delays
+  frameDelay: auto
+  
+  # Maximum delay between frames in ms
+  # Ignored if the `frameDelay` isn't set to `auto`
+  # Set to `auto` to prevent limiting the max idle time
+  maxIdleTime: 20000
+  
+  # The surrounding frame box
+  # The `type` can be null, window, floating, or solid`
+  # To hide the title use the value null
+  # Don't forget to add a backgroundColor style with a null as type
+  frameBox:
+    type: floating
+    title: Terminalizer
+    style:
+      border: 0px black solid
+      # boxShadow: none
+      # margin: 0px
+  
+  # Add a watermark image to the rendered gif
+  # You need to specify an absolute path for
+  # the image on your machine or a URL, and you can also
+  # add your own CSS styles
+  watermark:
+    imagePath: null
+    style:
+      position: absolute
+      right: 15px
+      bottom: 15px
+      width: 100px
+      opacity: 0.9
+  
+  # Cursor style can be one of
+  # `block`, `underline`, or `bar`
+  cursorStyle: block
+  
+  # Font family
+  # You can use any font that is installed on your machine
+  # in CSS-like syntax
+  fontFamily: "Monaco, Lucida Console, Ubuntu Mono, Monospace"
+  
+  # The size of the font
+  fontSize: 12
+  
+  # The height of lines
+  lineHeight: 1
+  
+  # The spacing between letters
+  letterSpacing: 0
+  
+  # Theme
+  theme:
+    background: "transparent"
+    foreground: "#afafaf"
+    cursor: "#c7c7c7"
+    black: "#232628"
+    red: "#fc4384"
+    green: "#b3e33b"
+    yellow: "#ffa727"
+    blue: "#75dff2"
+    magenta: "#ae89fe"
+    cyan: "#708387"
+    white: "#d5d5d0"
+    brightBlack: "#626566"
+    brightRed: "#ff7fac"
+    brightGreen: "#c8ed71"
+    brightYellow: "#ebdf86"
+    brightBlue: "#75dff2"
+    brightMagenta: "#ae89fe"
+    brightCyan: "#b1c6ca"
+    brightWhite: "#f9f9f4"
+  
+# Records, feel free to edit them
+records:
+  - delay: 10
+    content: 'Lukes-Computer:docker-chain-builder lhopki01$ '
+  - delay: 150
+    content: t
+  - delay: 150
+    content: r
+  - delay: 150
+    content: e
+  - delay: 150
+    content: e
+  - delay: 150
+    content: ' '
+  - delay: 432
+    content: t
+  - delay: 71
+    content: e
+  - delay: 177
+    content: "\ast_dirs"
+  - delay: 441
+    content: "\r\n"
+  - delay: 8
+    content: "test_dirs\r\n├── alpha\r\n│\_\_ ├── Dockerfile\r\n│\_\_ └── VERSION\r\n├── alpha-1\r\n│\_\_ ├── Dockerfile\r\n│\_\_ └── VERSION\r\n├── alpha-1-beta\r\n│\_\_ ├── Dockerfile\r\n│\_\_ └── VERSION\r\n├── alpha-2\r\n│\_\_ ├── Dockerfile\r\n│\_\_ └── VERSION\r\n├── charlie\r\n│\_\_ ├── Dockerfile\r\n│\_\_ └── VERSION\r\n├── charlie-1\r\n│\_\_ ├── Dockerfile\r\n│\_\_ └── VERSION\r\n└── conf.yaml\r\n\r\n6 directories, 13 files\r\nLukes-Computer:docker-chain-builder lhopki01$ "
+  - delay: 200
+    content: d
+  - delay: 65
+    content: o
+  - delay: 120
+    content: c
+  - delay: 55
+    content: k
+  - delay: 129
+    content: e
+  - delay: 48
+    content: r
+  - delay: 184
+    content: '-'
+  - delay: 184
+    content: c
+  - delay: 144
+    content: h
+  - delay: 103
+    content: 'ain-builder '
+  - delay: 300
+    content: b
+  - delay: 113
+    content: u
+  - delay: 72
+    content: i
+  - delay: 56
+    content: l
+  - delay: 154
+    content: d
+  - delay: 205
+    content: ' '
+  - delay: 300
+    content: t
+  - delay: 127
+    content: e
+  - delay: 95
+    content: "\ast_dirs"
+  - delay: 300
+    content: /
+  - delay: 215
+    content: a
+  - delay: 95
+    content: l
+  - delay: 125
+    content: "\apha"
+  - delay: 300
+    content: ' '
+  - delay: 200
+    content: '-'
+  - delay: 136
+    content: '-'
+  - delay: 105
+    content: b
+  - delay: 75
+    content: u
+  - delay: 67
+    content: m
+  - delay: 95
+    content: p
+  - delay: 75
+    content: =
+  - delay: 67
+    content: p
+  - delay: 95
+    content: a
+  - delay: 75
+    content: t
+  - delay: 67
+    content: c
+  - delay: 105
+    content: h
+  - delay: 95
+    content: ' '
+  - delay: 200
+    content: '-'
+  - delay: 75
+    content: '-'
+  - delay: 67
+    content: 'n'
+  - delay: 95
+    content: o
+  - delay: 95
+    content: '-'
+  - delay: 75
+    content: c
+  - delay: 67
+    content: a
+  - delay: 95
+    content: c
+  - delay: 67
+    content: h
+  - delay: 75
+    content: e
+  - delay: 300
+    content: "\r\n"
+  - delay: 84
+    content: "\e[36mINFO\e[0m[0000] using config file: test_dirs/conf.yaml       \r\n"
+  - delay: 5
+    content: "\e[?1049h\e[?1h\e=\e[?25l\e[H\e[2J\e[?1006l\e[?1015l\e[?1002l\e[?1000l\e(B\e[m\e[1m\e[1;1Halpha\e(B\e[m\e[1;39H│\e[2;3H↳\e[2;5Halpha-1\e[2;39H│\e[3;5H↳\e[3;7Halpha-1-beta\e[3;39H│\e[4;3H↳\e[4;5Halpha-2\e[4;39H│\e[5;39H│\e[6;39H│\e[7;39H│\e[8;39H│\e[9;39H│\e[10;39H│\e[11;39H│\e[12;39H│\e[13;39H│\e[14;39H│\e[15;39H│\e[16;39H│\e[17;39H│\e[18;39H│\e[19;39H│\e[20;39H│\e[21;1H──────────────────────────────────────│\e[22;39H│\e[23;39H│\e[24;39H│\e[25;39H│\e[26;39H│\e[27;39H│\e[28;39H│\e[29;1H───────────────────────────────────────────────────────────────────────────────────────────────────────────────────\e(B\e[m\e[37m\e[1m\e[30;1H[Ctrl-C]\e(B\e[m\e[30;10HQuit\e(B\e[m\e[37m\e[1m\e[30;16H[Up/Down]\e(B\e[m\e[30;26HSelect\e[30;33Himage\e(B\e[m\e[33m\e[30;40HBuilding\e(B\e[m\e[36m\e[30;50HPushing\e(B\e[m\e[31m\e[30;59HFailed\e(B\e[m\e[32m\e[30;67HDone"
+  - delay: 248
+    content: "\e(B\e[m\e[33m\e[1m\e[1;1Halpha"
+  - delay: 501
+    content: "\e(B\e[m\e[1;40HSending\e[1;48Hbuild\e[1;54Hcontext\e[1;62Hto\e[1;65HDocker\e[1;72Hdaemon\e[1;80H3.072kB"
+  - delay: 251
+    content: "\e[3;40HStep\e[3;45H1/2\e[3;49H:\e[3;51HFROM\e[3;56Halpine:3.9\e[4;41H--->\e[4;46H055936d39205\e[5;40HStep\e[5;45H2/2\e[5;49H:\e[5;51HRUN\e[5;55Hsleep\e[5;61H1\e[6;41H--->\e[6;46HRunning\e[6;54Hin\e[6;57H04e47ddb33e6"
+  - delay: 3248
+    content: "\e(B\e[m\e[32m\e[1m\e[1;1Halpha\e(B\e[m\e[33m\e[2;5Halpha-1\e[4;5Halpha-2\e(B\e[m\e[7;40HRemoving\e[7;49Hintermediate\e[7;62Hcontainer\e[7;72H04e47ddb33e6\e[8;41H--->\e[8;46H841001443ef9\e[9;40HSuccessfully\e[9;53Hbuilt\e[9;59H841001443ef9\e[10;40HSuccessfully\e[10;53Htagged\e[10;60Hdocker/registry/alpha:1.0.1\e[11;40HSuccessfully\e[11;53Htagged\e[11;60Hdocker/registry/alpha:1.0\e[12;40HSuccessfully\e[12;53Htagged\e[12;60Hdocker/registry/alpha:1\e[13;40HSuccessfully\e[13;53Htagged\e[13;60Hdocker/registry/alpha:latest"
+  - delay: 734
+    content: "\e(B\e[m\e[32m\e[1;1Halpha\e(B\e[m\e[32m\e[1m\e[2;1H  ↳ alpha-1\e(B\e[m\e[33m\e[1m\e[2;1H  ↳ alpha-1\e(B\e[m\e[3;56Hdocker/registry/alpha:1.0.1\e[4;46H841001443ef9\e[6;57Ha5125123d9\e[6;68H8\e[7;40H        \e[7;49H            \e[7;62H         \e[7;72H            \e[8;41H    \e[8;46H            \e[9;40H            \e[9;53H     \e[9;59H            \e[10;40H            \e[10;53H      \e[10;60H                           \e[11;40H            \e[11;53H      \e[11;60H                         \e[12;40H            \e[12;53H      \e[12;60H                       \e[13;40H            \e[13;53H      \e[13;60H                            "
+  - delay: 439
+    content: "\e[1;40H       \e[1;48H     \e[1;54H       \e[1;62H  \e[1;65H      \e[1;72H      \e[1;80H       \e[2;1H  ↳ \e(B\e[m\e[33malpha-1\e(B\e[m\e[1m\e[3;1H    ↳ alpha-1-beta\e(B\e[m\e[3;40H    \e[3;45H   \e[3;49H \e[3;51H    \e[3;56H                           \e[4;41H    \e[4;46H            \e[5;40H    \e[5;45H   \e[5;49H \e[5;51H   \e[5;55H     \e[5;61H \e[6;41H    \e[6;46H       \e[6;54H  \e[6;57H            "
+  - delay: 304
+    content: "\e[3;1H    ↳ alpha-1-beta\e(B\e[m\e[1m\e[4;1H  ↳ alpha-2\e(B\e[m\e[1;40HSending\e[1;48Hbuild\e[1;54Hcontext\e[1;62Hto\e[1;65HDocker\e[1;72Hdaemon\e[1;80H3.072kB\e[3;40HStep\e[3;45H1/2\e[3;49H:\e[3;51HFROM\e[3;56Hdocker/registry/alpha:1.0.1\e(B\e[m\e[33m\e[1m\e[4;1H  ↳ alpha-2\e(B\e[m\e[4;41H--->\e[4;46H841001443ef9\e[5;40HStep\e[5;45H2/2\e[5;49H:\e[5;51HRUN\e[5;55Hsleep\e[5;61H1\e[6;41H--->\e[6;46HRunning\e[6;54Hin\e[6;57H41a4143904d8"
+  - delay: 1270
+    content: "\e(B\e[m\e[32m\e[2;5Halpha-1\e(B\e[m\e[33m\e[3;7Halpha-1-beta"
+  - delay: 252
+    content: "\e(B\e[m\e[32m\e[1m\e[4;1H  ↳ alpha-2\e(B\e[m\e[7;40HRemoving\e[7;49Hintermediate\e[7;62Hcontainer\e[7;72H41a4143904d8\e[8;41H--->\e[8;46H3f6c232989d5\e[9;40HSuccessfully\e[9;53Hbuilt\e[9;59H3f6c232989d5\e[10;40HSuccessfully\e[10;53Htagged\e[10;60Hdocker/registry/alpha-2:0.1.1\e[11;40HSuccessfully\e[11;53Htagged\e[11;60Hdocker/registry/alpha-2:0.1\e[12;40HSuccessfully\e[12;53Htagged\e[12;60Hdocker/registry/alpha-2:0\e[13;40HSuccessfully\e[13;53Htagged\e[13;60Hdocker/registry/alpha-2:latest"
+  - delay: 813
+    content: "\e(B\e[m\e[32m\e[1m\e[3;1H    ↳ alpha-1-beta\e(B\e[m\e[4;1H  ↳ \e(B\e[m\e[32malpha-2\e(B\e[m\e[33m\e[1m\e[3;1H    ↳ alpha-1-beta\e(B\e[m\e[3;77H-\e[3;79H:\e[3;83H.1\e[4;46Hcdf439065806\e[6;57H0018d8c64201\e[7;40H        \e[7;49H            \e[7;62H         \e[7;72H            \e[8;41H    \e[8;46H            \e[9;40H            \e[9;53H     \e[9;59H            \e[10;40H            \e[10;53H      \e[10;60H                             \e[11;40H            \e[11;53H      \e[11;60H                           \e[12;40H            \e[12;53H      \e[12;60H                         \e[13;40H            \e[13;53H      \e[13;60H                              "
+  - delay: 1937
+    content: "\e(B\e[m\e[32m\e[1m\e[3;1H    ↳ alpha-1-beta\e(B\e[m\e[7;40HRemoving\e[7;49Hintermediate\e[7;62Hcontainer\e[7;72H0018d8c64201\e[8;41H--->\e[8;46H0f003f5bc65f\e[9;40HSuccessfully\e[9;53Hbuilt\e[9;59H0f003f5bc65f\e[10;40HSuccessfully\e[10;53Htagged\e[10;60Hdocker/registry/alpha-1-beta:0.0.2\e[11;40HSuccessfully\e[11;53Htagged\e[11;60Hdocker/registry/alpha-1-beta:0.0\e[12;40HSuccessfully\e[12;53Htagged\e[12;60Hdocker/registry/alpha-1-beta:0\e[13;40HSuccessfully\e[13;53Htagged\e[13;60Hdocker/registry/alpha-1-beta:latest"
+  - delay: 5000
+    content: "\e[?12l\e[?25h\e(B\e[m\e[H\e[2J\e[?1049l\e[?1l\e>\e[?1006l\e[?1015l\e[?1002l\e[?1000lLukes-Computer:docker-chain-builder lhopki01$ "
