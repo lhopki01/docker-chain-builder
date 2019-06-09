@@ -34,7 +34,6 @@ brew:
     name: lhopki01
     email: lhopki01@gmail.com
   dependencies:
-    - git
-    - hub
+    - docker
   install: |
     bin.install "docker-chain-builder"

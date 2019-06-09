@@ -6,8 +6,7 @@ class DockerChainBuilder < Formula
   version "1.0.1"
   sha256 "cbbd7f4c99c8886cb1829c149f11962d032f2861fe0a60666e4e654e864af74a"
   
-  depends_on "git"
-  depends_on "hub"
+  depends_on "docker"
 
   def install
     bin.install "docker-chain-builder"

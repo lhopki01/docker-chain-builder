@@ -9,10 +9,11 @@ If fed a list of images docker-chain-builder will figure out which images are th
 
 ## Installation
 
-Install docker
-`brew install docker`
-Install docker-chain-builder
-`go get github.com/lhopki01/docker-chain-builder`
+```
+brew tap lhopki01/docker-chain-builder git@github.com:lhopki01/docker-chain-builder
+brew install docker-chain-builder
+
+```
 
 ## Setup
 
