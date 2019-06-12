@@ -77,6 +77,7 @@ var (
 
 var (
 	bumpComponent  string
+	sinceCommit    string
 	dryRun         bool
 	noCache        bool
 	nonInteractive bool
@@ -112,6 +113,11 @@ All source folders must be in the same folder.`,
 		}
 		dm := DependencyMap{}
 		dm.initDepencyMap(args)
+
+		if sinceCommit != "" {
+			dm.RootImages = dm.sinceCommit()
+		}
+
 		if nonInteractive || dryRun {
 			dm.build()
 		} else {
@@ -127,7 +133,7 @@ func init() {
 
 	helpBump := fmt.Sprintf("semver component to bump [%s]", strings.Join(Versions, "|"))
 	buildCmd.Flags().StringVar(&bumpComponent, "bump", VersionNone, helpBump)
-
+	buildCmd.Flags().StringVar(&sinceCommit, "since-commit", "", "only images changes since specified commit")
 	buildCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "show what would happen")
 	buildCmd.Flags().BoolVar(&noCache, "no-cache", false, "do not use cache when building the images")
 	buildCmd.Flags().BoolVar(&push, "push", false, "push images to registry")
@@ -143,6 +149,41 @@ func loadConfFile() {
 	} else {
 		log.Warn("no conf file")
 	}
+}
+
+func (dm *DependencyMap) sinceCommit() []string {
+	cmd := exec.Command("git", "diff", "--ignore-all-space", "--name-only", sinceCommit, "--", "*")
+	cmd.Dir = viper.GetString("rootFolder")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatal("Commit command failed")
+	}
+	lines := strings.Split(string(output), "\n")
+	var changedRootFolders []string
+	for _, line := range lines {
+		for _, image := range dm.RootImages {
+			match, err := filepath.Match(fmt.Sprintf("*/%s/*", image), filepath.Clean(line))
+			if err != nil {
+				log.Warnf("couldn't match image %s with %s", image, line)
+			}
+			if match {
+				changedRootFolders = append(changedRootFolders, image)
+			}
+		}
+	}
+	return unique(changedRootFolders)
+}
+
+func unique(stringSlice []string) []string {
+	keys := make(map[string]bool)
+	list := []string{}
+	for _, entry := range stringSlice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
 }
 
 func (dm *DependencyMap) initDepencyMap(args []string) {
@@ -215,7 +256,7 @@ func (dm *DependencyMap) getChildren(folder string) []string {
 				children = append(children, dm.getChildren(child)...)
 			}
 		}
-		return children
+		return unique(children)
 	}
 	return []string{}
 }
