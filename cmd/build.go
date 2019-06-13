@@ -114,10 +114,6 @@ All source folders must be in the same folder.`,
 		dm := DependencyMap{}
 		dm.initDepencyMap(args)
 
-		if sinceCommit != "" {
-			dm.RootImages = dm.sinceCommit()
-		}
-
 		if nonInteractive || dryRun {
 			dm.build()
 		} else {
@@ -151,7 +147,7 @@ func loadConfFile() {
 	}
 }
 
-func (dm *DependencyMap) sinceCommit() []string {
+func imagesChangedSinceCommit(images []string) []string {
 	cmd := exec.Command("git", "diff", "--ignore-all-space", "--name-only", sinceCommit, "--", "*")
 	cmd.Dir = viper.GetString("rootFolder")
 	output, err := cmd.CombinedOutput()
@@ -161,7 +157,7 @@ func (dm *DependencyMap) sinceCommit() []string {
 	lines := strings.Split(string(output), "\n")
 	var changedRootFolders []string
 	for _, line := range lines {
-		for _, image := range dm.RootImages {
+		for _, image := range images {
 			match, err := filepath.Match(fmt.Sprintf("*/%s/*", image), filepath.Clean(line))
 			if err != nil {
 				log.Warnf("couldn't match image %s with %s", image, line)
@@ -214,6 +210,9 @@ func (dm *DependencyMap) getRootFolders(args []string) []string {
 			argImages = append(argImages, filepath.Base(arg))
 		}
 	}
+	if sinceCommit != "" {
+		argImages = imagesChangedSinceCommit(argImages)
+	}
 
 	var buildImages []string
 	for _, argImage := range argImages {
@@ -228,7 +227,6 @@ func (dm *DependencyMap) getRootFolders(args []string) []string {
 		}
 	}
 	log.Debugf("Root images are %v", rootImages)
-
 	return rootImages
 }
 
@@ -356,7 +354,6 @@ func (dm *DependencyMap) updateVersions(images []string, increment bool) {
 		}
 		var dependentImages []string
 		for key, dockerImage := range dm.DockerImages {
-			//fmt.Printf("Comparing %s to %s\n", dockerImage.FromImage, dm.DockerImages[image].Image)
 			if dockerImage.FromImage == dm.DockerImages[image].Image {
 				dependentImages = append(dependentImages, key)
 			}
