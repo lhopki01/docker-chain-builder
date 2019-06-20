@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
+	"github.com/bmatcuk/doublestar"
 	"github.com/jroimartin/gocui"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -155,10 +156,12 @@ func imagesChangedSinceCommit(images []string) []string {
 		log.Fatal("Commit command failed")
 	}
 	lines := strings.Split(string(output), "\n")
+
 	var changedRootFolders []string
 	for _, line := range lines {
 		for _, image := range images {
-			match, err := filepath.Match(fmt.Sprintf("*/%s/*", image), filepath.Clean(line))
+			log.Debug("Comparing: %s to %s", fmt.Sprintf("*/%s/**"))
+			match, err := doublestar.PathMatch(fmt.Sprintf("*/%s/**", image), filepath.Clean(line))
 			if err != nil {
 				log.Warnf("couldn't match image %s with %s", image, line)
 			}
@@ -210,9 +213,13 @@ func (dm *DependencyMap) getRootFolders(args []string) []string {
 			argImages = append(argImages, filepath.Base(arg))
 		}
 	}
+	log.Debug("====after sinceCommit======")
+	log.Debug(argImages)
 	if sinceCommit != "" {
 		argImages = imagesChangedSinceCommit(argImages)
 	}
+	log.Debug("====after sinceCommit======")
+	log.Debug(argImages)
 
 	var buildImages []string
 	for _, argImage := range argImages {

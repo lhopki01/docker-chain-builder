@@ -3,6 +3,7 @@ module github.com/lhopki01/docker-chain-builder
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/Masterminds/semver v1.4.2
+	github.com/bmatcuk/doublestar v1.1.1
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jroimartin/gocui v0.4.0
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
