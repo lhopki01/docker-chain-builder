@@ -122,6 +122,11 @@ All source folders must be in the same folder.`,
 			go dm.build()
 			gui(&dm)
 		}
+		for _, image := range dm.DockerImages {
+			if image.BuildStatus == "failure" {
+				os.Exit(1)
+			}
+		}
 	},
 }
 
