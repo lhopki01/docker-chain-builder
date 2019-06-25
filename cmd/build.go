@@ -377,6 +377,7 @@ func (dm *DependencyMap) buildDockerImages(images []string) {
 		go func(folder string, dm DependencyMap, wg *sync.WaitGroup) {
 			err := dm.buildDockerImage(folder)
 			if err != nil {
+				wg.Done()
 				return
 			}
 			var dependentImages []string
