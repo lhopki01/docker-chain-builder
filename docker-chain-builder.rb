@@ -2,9 +2,15 @@
 class DockerChainBuilder < Formula
   desc ""
   homepage ""
-  url "https://github.com/lhopki01/docker-chain-builder/releases/download/v1.1.6/docker-chain-builder_1.1.6_Darwin_x86_64.tar.gz"
-  version "1.1.6"
-  sha256 "096b42a9bee7680ba936a1e7fcdd08698e0683b773535fe24d144131726c4ad6"
+  version "1.1.7"
+
+  if OS.mac?
+    url "https://github.com/lhopki01/docker-chain-builder/releases/download/v1.1.7/docker-chain-builder_1.1.7_Darwin_x86_64.tar.gz"
+    sha256 "ea21412329d9867c765f6167da50b000c194e636d257862420df7fe9eae1d996"
+  elsif OS.linux?
+    url "https://github.com/lhopki01/docker-chain-builder/releases/download/v1.1.7/docker-chain-builder_1.1.7_Linux_x86_64.tar.gz"
+    sha256 "ced902e4576c9f7c40fc7d86f1a48368e48cae494c606368e77736f12633de69"
+  end
   
   depends_on "docker"
 
