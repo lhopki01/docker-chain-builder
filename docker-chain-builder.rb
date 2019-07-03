@@ -2,14 +2,14 @@
 class DockerChainBuilder < Formula
   desc ""
   homepage ""
-  version "1.1.7"
+  version "1.1.8"
 
   if OS.mac?
-    url "https://github.com/lhopki01/docker-chain-builder/releases/download/v1.1.7/docker-chain-builder_1.1.7_Darwin_x86_64.tar.gz"
-    sha256 "ea21412329d9867c765f6167da50b000c194e636d257862420df7fe9eae1d996"
+    url "https://github.com/lhopki01/docker-chain-builder/releases/download/v1.1.8/docker-chain-builder_1.1.8_Darwin_x86_64.tar.gz"
+    sha256 "feda2f301575314ba75c69da6f5282976a3392b28dc42e5c1ce4066a2fa8c50f"
   elsif OS.linux?
-    url "https://github.com/lhopki01/docker-chain-builder/releases/download/v1.1.7/docker-chain-builder_1.1.7_Linux_x86_64.tar.gz"
-    sha256 "ced902e4576c9f7c40fc7d86f1a48368e48cae494c606368e77736f12633de69"
+    url "https://github.com/lhopki01/docker-chain-builder/releases/download/v1.1.8/docker-chain-builder_1.1.8_Linux_x86_64.tar.gz"
+    sha256 "168211a320e8ac6d559e2943fdefe39c509ef10b67b45714be4187d9138e8edd"
   end
   
   depends_on "docker"
