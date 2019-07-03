@@ -11,8 +11,6 @@ class DockerChainBuilder < Formula
     url "https://github.com/lhopki01/docker-chain-builder/releases/download/v1.1.8/docker-chain-builder_1.1.8_Linux_x86_64.tar.gz"
     sha256 "168211a320e8ac6d559e2943fdefe39c509ef10b67b45714be4187d9138e8edd"
   end
-  
-  depends_on "docker"
 
   def install
     bin.install "docker-chain-builder"
