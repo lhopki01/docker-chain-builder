@@ -287,16 +287,16 @@ func bumpVersion(version string, semverComponent string) (newVersion []string) {
 	}
 	preRelease := v.Prerelease()
 	log.Debugf("preRelease is: %s", preRelease)
-	newPreRelease := 0
 	switch semverComponent {
 	case VersionNone:
 		break
 	case VersionPre:
-		newPreRelease, err = strconv.Atoi(preRelease)
+		newPreRelease, err := strconv.Atoi(preRelease)
 		if err != nil {
-			log.Warnf("can't increment pre-release %s", preRelease)
+			log.Fatalf("can't parse pre-release %s to increment", preRelease)
 		}
-		newPreRelease = newPreRelease + 1
+		newPreRelease += 1
+		preRelease = strconv.Itoa(newPreRelease)
 	case VersionMinor:
 		*v = v.IncMinor()
 	case VersionPatch:
@@ -306,15 +306,24 @@ func bumpVersion(version string, semverComponent string) (newVersion []string) {
 	default:
 		log.Fatalf("don't understand semverComponent %s", semverComponent)
 	}
+	versions := []string{}
+
 	if preRelease != "" {
 		log.Debug("newPreRelease")
-		*v, err = v.SetPrerelease(strconv.Itoa(newPreRelease))
+		*v, err = v.SetPrerelease(preRelease)
 		if err != nil {
-			log.Fatalf("failed to add pre-release %s with err %v", strconv.Itoa(newPreRelease), err)
+			log.Fatalf("failed to add pre-release %s with err %v", preRelease, err)
 		}
-		return []string{v.String()}
+		versions = append(versions, v.String())
 	}
-	return []string{v.String(), fmt.Sprintf("%d.%d", v.Major(), v.Minor()), fmt.Sprintf("%d", v.Major())}
+
+	versions = append(versions,
+		fmt.Sprintf("%d.%d.%d", v.Major(), v.Minor(), v.Patch()),
+		fmt.Sprintf("%d.%d", v.Major(), v.Minor()),
+		fmt.Sprintf("%d", v.Major()),
+	)
+
+	return versions
 }
 
 func (dm *DependencyMap) updateVersionFile(folder string) {
