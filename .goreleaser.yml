@@ -28,14 +28,16 @@ changelog:
     exclude:
     - '^docs:'
     - '^test:'
-brew:
-  github:
-    owner: lhopki01
-    name: docker-chain-builder
-  commit_author:
-    name: lhopki01
-    email: lhopki01@gmail.com
-  dependencies:
-    - docker
-  install: |
-    bin.install "docker-chain-builder"
+brews:
+  - github:
+      owner: lhopki01
+      name: brew
+    commit_author:
+      name: lhopki01
+      email: lhopki01@gmail.com
+    dependencies:
+      - docker
+    description: "Tool to build multiple dependent docker images in the correct order"
+    folder: Formula
+    install: |
+      bin.install "docker-chain-builder"

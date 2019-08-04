@@ -12,8 +12,12 @@ If fed a list of images docker-chain-builder will figure out which images are th
 ## Installation
 
 ```
-brew tap lhopki01/docker-chain-builder git@github.com:lhopki01/docker-chain-builder
+brew tap lhopki01/brew git@github.com:lhopki01/brew
 brew install docker-chain-builder
+```
+If you have installed `docker-chain-builder` before you need to remove the old tap
+```
+brew untap lhopki01/docker-chain-builder
 ```
 
 ## Setup
