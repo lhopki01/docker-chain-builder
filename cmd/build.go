@@ -84,6 +84,7 @@ var (
 	nonInteractive bool
 	push           bool
 	verbose        bool
+	network        string
 )
 
 // buildCmd represents the build command
@@ -141,6 +142,7 @@ func init() {
 	buildCmd.Flags().BoolVar(&push, "push", false, "push images to registry")
 	buildCmd.Flags().BoolVar(&nonInteractive, "non-interactive", false, "don't use the gui to display the build")
 	buildCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "verbose mode")
+	buildCmd.Flags().StringVarP(&network, "network", "", "", "Docker's network driver")
 }
 
 func loadConfFile() {
@@ -426,6 +428,9 @@ func (dm *DependencyMap) buildDockerImage(folder string) error {
 	}
 	if noCache {
 		args = append(args, "--no-cache")
+	}
+	if network != ""{
+		args = append(args, "--network", network)
 	}
 
 	for _, tag := range tags {
