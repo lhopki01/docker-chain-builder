@@ -10,6 +10,7 @@ If fed a list of images docker-chain-builder will figure out which images are th
 ![](images/demo.gif)
 
 ## Installation
+:exclamation: If you are using `Docker desktop` please pass the `--ignore-dependencies` flag to the `brew install docker-chain-builder` command. Otherwise, the `docker` dependency will be installed. 
 
 ```
 brew tap lhopki01/brew git@github.com:lhopki01/brew
